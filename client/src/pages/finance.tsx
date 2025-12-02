@@ -25,13 +25,13 @@ import {
 } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO, getMonth, getYear, isSameDay, isSameMonth, isSameYear, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { format, parseISO, getMonth, getYear, isSameDay, isSameMonth, isSameYear, startOfMonth, endOfMonth, eachDayOfInterval, differenceInYears } from "date-fns";
 import { ar } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -45,7 +45,7 @@ const expenseSchema = z.object({
 });
 
 export default function Finance() {
-  const { expenses, visits, appointments, patients, addExpense } = useStore();
+  const { expenses, visits, appointments, patients, services, addExpense } = useStore();
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
   const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
   const { toast } = useToast();
@@ -169,6 +169,66 @@ export default function Finance() {
     };
   }, [filteredData]);
 
+  // --- Extended Analytics ---
+  const analytics = useMemo(() => {
+    // Doctor Performance
+    const doctorStats: Record<string, { visits: number; revenue: number }> = {};
+    filteredData.visits.forEach(v => {
+      if (!doctorStats[v.doctorName]) doctorStats[v.doctorName] = { visits: 0, revenue: 0 };
+      doctorStats[v.doctorName].visits += 1;
+      doctorStats[v.doctorName].revenue += v.paidAmount;
+    });
+    const doctorData = Object.keys(doctorStats).map(k => ({ 
+      name: k, 
+      visits: doctorStats[k].visits, 
+      revenue: doctorStats[k].revenue 
+    }));
+
+    // Service Popularity
+    const serviceStats: Record<string, number> = {};
+    filteredData.visits.forEach(v => {
+      v.items.forEach(item => {
+        const service = services.find(s => s.id === item.serviceId);
+        const name = service ? service.name : 'غير معروف';
+        serviceStats[name] = (serviceStats[name] || 0) + 1;
+      });
+    });
+    const serviceData = Object.keys(serviceStats)
+      .map(k => ({ name: k, count: serviceStats[k] }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5
+
+    // Patient Demographics (All active patients, not just filtered, usually better for general stats, but let's stick to filtered context if possible - actually patients are global)
+    // Let's filter patients who visited in this period? Or just general stats? 
+    // "Reports for everything" implies deep dive. Let's show stats for patients who visited in this period.
+    const patientIdsInPeriod = new Set(filteredData.visits.map(v => v.patientId));
+    const activePatients = patients.filter(p => patientIdsInPeriod.has(p.id));
+    
+    const genderStats = activePatients.reduce((acc, p) => {
+      acc[p.gender] = (acc[p.gender] || 0) + 1;
+      return acc;
+    }, { male: 0, female: 0 } as Record<string, number>);
+    
+    const genderData = [
+      { name: 'ذكور', value: genderStats.male },
+      { name: 'إناث', value: genderStats.female }
+    ];
+
+    // Appointment Status
+    const apptStats = filteredData.appointments.reduce((acc, a) => {
+      acc[a.status] = (acc[a.status] || 0) + 1;
+      return acc;
+    }, { scheduled: 0, completed: 0, cancelled: 0 } as Record<string, number>);
+    
+    const apptData = [
+      { name: 'مكتمل', value: apptStats.completed },
+      { name: 'مجدول', value: apptStats.scheduled },
+      { name: 'ملغي', value: apptStats.cancelled },
+    ];
+
+    return { doctorData, serviceData, genderData, apptData };
+  }, [filteredData, services, patients]);
+
   // --- Charts Data Preparation ---
   const chartData = useMemo(() => {
     if (reportType === 'yearly') {
@@ -210,6 +270,7 @@ export default function Finance() {
   });
   const categoryData = Object.keys(categoryDataRaw).map(k => ({ name: k, value: categoryDataRaw[k] }));
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  const APPT_COLORS = ['#10B981', '#3B82F6', '#EF4444']; // Green, Blue, Red
 
   const onlyExpenses = expenses.filter(e => e.type !== 'withdrawal');
   const onlyWithdrawals = expenses.filter(e => e.type === 'withdrawal');
@@ -223,7 +284,7 @@ export default function Finance() {
 
       <Tabs defaultValue="reports" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="reports">التقارير والأرباح</TabsTrigger>
+          <TabsTrigger value="reports">التقارير الشاملة</TabsTrigger>
           <TabsTrigger value="expenses">المصروفات</TabsTrigger>
           <TabsTrigger value="withdrawals">السحبيات</TabsTrigger>
         </TabsList>
@@ -301,7 +362,7 @@ export default function Finance() {
             </div>
           </Card>
 
-          {/* Stats Cards */}
+          {/* Financial Summary Cards */}
           <div className="grid gap-4 md:grid-cols-4">
             <Card className="border-none shadow-md">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -352,11 +413,62 @@ export default function Finance() {
             </Card>
           </div>
 
-          {/* Charts */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="p-4">
+          {/* --- Operational Analytics Section --- */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Doctor Performance */}
+            <Card className="col-span-2">
               <CardHeader>
-                <CardTitle>مقارنة الدخل والمصروفات</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5" />
+                  أداء الأطباء
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.doctorData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="revenue" name="الإيرادات" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="visits" name="الزيارات" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Top Services */}
+            <Card>
+              <CardHeader>
+                <CardTitle>أكثر الخدمات طلباً</CardTitle>
+              </CardHeader>
+              <CardContent>
+                 <div className="space-y-4">
+                   {analytics.serviceData.map((service, i) => (
+                     <div key={i} className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                           {i + 1}
+                         </div>
+                         <span className="text-sm font-medium">{service.name}</span>
+                       </div>
+                       <span className="text-sm text-muted-foreground">{service.count} مرة</span>
+                     </div>
+                   ))}
+                   {analytics.serviceData.length === 0 && (
+                     <div className="text-center text-muted-foreground py-8">لا توجد بيانات</div>
+                   )}
+                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+             {/* Financial Chart */}
+             <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle>التحليل المالي</CardTitle>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -373,7 +485,8 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            <Card className="p-4">
+             {/* Expenses Pie */}
+             <Card>
               <CardHeader>
                 <CardTitle>توزيع المصروفات</CardTitle>
               </CardHeader>
@@ -400,9 +513,113 @@ export default function Finance() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-full flex items-center justify-center text-muted-foreground">
-                    لا توجد بيانات للمصروفات في هذه الفترة
+                    لا توجد بيانات
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* --- Demographics & Operations --- */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Appointment Status */}
+            <Card className="col-span-1">
+               <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4" />
+                  حالة المواعيد
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analytics.apptData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {analytics.apptData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={APPT_COLORS[index % APPT_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Gender Stats */}
+             <Card className="col-span-1">
+               <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  المرضى (جنس)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[200px]">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analytics.genderData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        dataKey="value"
+                      >
+                        <Cell fill="#3B82F6" /> {/* Male */}
+                        <Cell fill="#EC4899" /> {/* Female */}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Detailed Lists Tables */}
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle>أحدث العمليات المالية</CardTitle>
+              </CardHeader>
+              <CardContent>
+                 <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>النوع</TableHead>
+                      <TableHead>البند</TableHead>
+                      <TableHead>المبلغ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Combine visits and expenses for a timeline view */}
+                    {[
+                        ...filteredData.visits.map(v => ({ date: v.date, type: 'income', title: 'زيارة مريض', amount: v.paidAmount })),
+                        ...filteredData.expenses.map(e => ({ date: e.date, type: 'expense', title: e.title, amount: e.amount }))
+                    ]
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 4)
+                    .map((item, i) => (
+                       <TableRow key={i}>
+                          <TableCell>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              item.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {item.type === 'income' ? 'دخل' : 'صرف'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{item.title}</TableCell>
+                          <TableCell className={item.type === 'income' ? 'text-green-600' : 'text-red-600'}>
+                            {item.amount}
+                          </TableCell>
+                       </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </div>
