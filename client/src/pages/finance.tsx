@@ -46,7 +46,8 @@ const expenseSchema = z.object({
 
 export default function Finance() {
   const { expenses, visits, appointments, patients, addExpense } = useStore();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isExpenseOpen, setIsExpenseOpen] = useState(false);
+  const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
   const { toast } = useToast();
 
   // Report State
@@ -67,20 +68,56 @@ export default function Finance() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof expenseSchema>) {
+  const withdrawalForm = useForm<z.infer<typeof expenseSchema>>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      title: "",
+      amount: 0,
+      date: format(new Date(), "yyyy-MM-dd"),
+      category: "سحبيات",
+      type: "withdrawal",
+      notes: "",
+    },
+  });
+
+  function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
     addExpense(values);
-    setIsOpen(false);
-    form.reset();
+    setIsExpenseOpen(false);
+    form.reset({
+      title: "",
+      amount: 0,
+      date: format(new Date(), "yyyy-MM-dd"),
+      category: "مشتريات",
+      type: "operational",
+      notes: "",
+    });
     toast({
-      title: "تم تسجيل العملية",
-      description: "تم إضافة البيانات بنجاح",
+      title: "تم تسجيل المصروف",
+      description: "تم إضافة المصروف بنجاح",
+    });
+  }
+
+  function onWithdrawalSubmit(values: z.infer<typeof expenseSchema>) {
+    addExpense(values);
+    setIsWithdrawalOpen(false);
+    withdrawalForm.reset({
+      title: "",
+      amount: 0,
+      date: format(new Date(), "yyyy-MM-dd"),
+      category: "سحبيات",
+      type: "withdrawal",
+      notes: "",
+    });
+    toast({
+      title: "تم تسجيل السحب",
+      description: "تم إضافة السحب الشخصي بنجاح",
     });
   }
 
   // --- Dynamic Filtering Logic ---
   const filteredData = useMemo(() => {
     const targetDate = parseISO(selectedDate);
-    const targetMonth = parseISO(selectedMonth + '-01'); // Add day to make it parseable
+    const targetMonth = parseISO(selectedMonth + '-01');
     const targetYear = parseInt(selectedYear);
 
     const filterFn = (dateStr: string) => {
@@ -106,7 +143,6 @@ export default function Finance() {
   const stats = useMemo(() => {
     const income = filteredData.visits.reduce((sum, v) => sum + v.paidAmount, 0);
     
-    // Separate expenses by type
     const operationalExpenses = filteredData.expenses
       .filter(e => e.type === 'operational')
       .reduce((sum, e) => sum + e.amount, 0);
@@ -121,7 +157,6 @@ export default function Finance() {
 
     const totalExpenses = operationalExpenses + fixedExpenses;
     const netProfit = income - totalExpenses;
-    const cashFlow = netProfit - withdrawals;
     
     return {
       income,
@@ -130,7 +165,6 @@ export default function Finance() {
       withdrawals,
       totalExpenses,
       netProfit,
-      cashFlow,
       visitsCount: filteredData.visits.length,
     };
   }, [filteredData]);
@@ -177,6 +211,9 @@ export default function Finance() {
   const categoryData = Object.keys(categoryDataRaw).map(k => ({ name: k, value: categoryDataRaw[k] }));
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
+  const onlyExpenses = expenses.filter(e => e.type !== 'withdrawal');
+  const onlyWithdrawals = expenses.filter(e => e.type === 'withdrawal');
+
   return (
     <div className="space-y-8">
       <div>
@@ -187,9 +224,11 @@ export default function Finance() {
       <Tabs defaultValue="reports" className="space-y-6">
         <TabsList>
           <TabsTrigger value="reports">التقارير والأرباح</TabsTrigger>
-          <TabsTrigger value="expenses">المصروفات والسحبيات</TabsTrigger>
+          <TabsTrigger value="expenses">المصروفات</TabsTrigger>
+          <TabsTrigger value="withdrawals">السحبيات</TabsTrigger>
         </TabsList>
 
+        {/* --- Reports Tab --- */}
         <TabsContent value="reports" className="space-y-6">
           {/* Filters Bar */}
           <Card className="p-4 bg-muted/30 border-none">
@@ -264,7 +303,6 @@ export default function Finance() {
 
           {/* Stats Cards */}
           <div className="grid gap-4 md:grid-cols-4">
-            {/* Income Card */}
             <Card className="border-none shadow-md">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">إجمالي الدخل</CardTitle>
@@ -276,7 +314,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            {/* Total Expenses Card */}
              <Card className="border-none shadow-md">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">إجمالي المصروفات</CardTitle>
@@ -292,7 +329,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            {/* Net Profit Card */}
              <Card className="bg-primary text-primary-foreground border-none shadow-md">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-primary-foreground/80">صافي الأرباح</CardTitle>
@@ -300,11 +336,10 @@ export default function Finance() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.netProfit.toLocaleString()} ر.س</div>
-                <p className="text-xs text-primary-foreground/70 mt-1">الدخل - المصروفات</p>
+                <p className="text-xs text-primary-foreground/70 mt-1">الدخل - المصروفات (بدون سحبيات)</p>
               </CardContent>
             </Card>
 
-            {/* Withdrawals Card */}
              <Card className="border-none shadow-md bg-amber-50">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-amber-900">السحبيات الشخصية</CardTitle>
@@ -321,10 +356,7 @@ export default function Finance() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="p-4">
               <CardHeader>
-                <CardTitle>
-                  {reportType === 'daily' ? 'مقارنة الدخل والمصروف' : 
-                   reportType === 'monthly' ? 'التحليل اليومي' : 'التحليل الشهري'}
-                </CardTitle>
+                <CardTitle>مقارنة الدخل والمصروفات</CardTitle>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -343,7 +375,7 @@ export default function Finance() {
 
             <Card className="p-4">
               <CardHeader>
-                <CardTitle>توزيع المصروفات التشغيلية والثابتة</CardTitle>
+                <CardTitle>توزيع المصروفات</CardTitle>
               </CardHeader>
               <CardContent className="h-[300px]">
                 {categoryData.length > 0 ? (
@@ -374,106 +406,31 @@ export default function Finance() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Detailed Lists */}
-          <div className="grid gap-4 md:grid-cols-2">
-             <Card>
-              <CardHeader>
-                <CardTitle>تفاصيل الزيارات في الفترة المحددة</CardTitle>
-              </CardHeader>
-              <CardContent>
-                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>التاريخ</TableHead>
-                      <TableHead>المريض</TableHead>
-                      <TableHead>المبلغ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.visits.slice(0, 5).map((v) => {
-                      const p = patients.find(pat => pat.id === v.patientId);
-                      return (
-                        <TableRow key={v.id}>
-                          <TableCell>{v.date}</TableCell>
-                          <TableCell>{p?.name}</TableCell>
-                          <TableCell className="text-green-600 font-medium">{v.paidAmount}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {filteredData.visits.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground">لا توجد بيانات</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-             </Card>
-
-             <Card>
-              <CardHeader>
-                <CardTitle>تفاصيل المصروفات والسحبيات في الفترة المحددة</CardTitle>
-              </CardHeader>
-              <CardContent>
-                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>التاريخ</TableHead>
-                      <TableHead>النوع</TableHead>
-                      <TableHead>المبلغ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.expenses.slice(0, 5).map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell>{e.date}</TableCell>
-                        <TableCell>
-                           <span className={`text-xs px-2 py-1 rounded-full ${
-                             e.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' :
-                             e.type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
-                           }`}>
-                             {e.type === 'withdrawal' ? 'سحب' : e.type === 'fixed' ? 'ثابت' : 'تشغيلي'}
-                           </span>
-                           <span className="mr-2">{e.title}</span>
-                        </TableCell>
-                        <TableCell className="text-red-600 font-medium">{e.amount}</TableCell>
-                      </TableRow>
-                    ))}
-                     {filteredData.expenses.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground">لا توجد بيانات</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-             </Card>
-          </div>
         </TabsContent>
 
+        {/* --- Expenses Tab (Operational + Fixed Only) --- */}
         <TabsContent value="expenses" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold">سجل المصروفات والسحبيات</h3>
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <h3 className="text-xl font-bold">سجل المصروفات التشغيلية والثابتة</h3>
+            <Dialog open={isExpenseOpen} onOpenChange={setIsExpenseOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="w-4 h-4" />
-                  عملية جديدة
+                  مصروف جديد
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>تسجيل عملية جديدة</DialogTitle>
+                  <DialogTitle>تسجيل مصروف جديد</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(onExpenseSubmit)} className="space-y-4">
                      <FormField
                       control={form.control}
                       name="type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>نوع العملية</FormLabel>
+                          <FormLabel>نوع المصروف</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger>
@@ -483,7 +440,6 @@ export default function Finance() {
                             <SelectContent>
                               <SelectItem value="operational">مصروف تشغيلي</SelectItem>
                               <SelectItem value="fixed">مصروف ثابت (إيجار/رواتب)</SelectItem>
-                              <SelectItem value="withdrawal">سحب شخصي (أرباح)</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -497,7 +453,7 @@ export default function Finance() {
                         <FormItem>
                           <FormLabel>الوصف</FormLabel>
                           <FormControl>
-                            <Input placeholder="فاتورة كهرباء، راتب، سحب..." {...field} />
+                            <Input placeholder="فاتورة كهرباء، راتب..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -571,7 +527,7 @@ export default function Finance() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">نوع العملية</TableHead>
+                  <TableHead className="text-right">النوع</TableHead>
                   <TableHead className="text-right">البند</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
                   <TableHead className="text-right">المبلغ</TableHead>
@@ -579,27 +535,156 @@ export default function Finance() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses.length === 0 ? (
+                {onlyExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      لا توجد عمليات مسجلة
+                      لا توجد مصروفات مسجلة
                     </TableCell>
                   </TableRow>
                 ) : (
-                  expenses.map((expense) => (
+                  onlyExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium">{expense.date}</TableCell>
                        <TableCell>
                         <span className={`text-xs px-2 py-1 rounded-full ${
-                             expense.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' :
                              expense.type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
                            }`}>
-                             {expense.type === 'withdrawal' ? 'سحب شخصي' : expense.type === 'fixed' ? 'مصروف ثابت' : 'مصروف تشغيلي'}
+                             {expense.type === 'fixed' ? 'مصروف ثابت' : 'مصروف تشغيلي'}
                            </span>
                       </TableCell>
                       <TableCell>{expense.title}</TableCell>
                       <TableCell>{expense.category}</TableCell>
                       <TableCell className="text-red-600 font-medium">-{expense.amount} ر.س</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{expense.notes || '-'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* --- Withdrawals Tab --- */}
+        <TabsContent value="withdrawals" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">سجل السحبيات الشخصية</h3>
+            <Dialog open={isWithdrawalOpen} onOpenChange={setIsWithdrawalOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" variant="secondary">
+                  <ArrowDownCircle className="w-4 h-4" />
+                  سحب جديد
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>تسجيل سحب شخصي</DialogTitle>
+                </DialogHeader>
+                <Form {...withdrawalForm}>
+                  <form onSubmit={withdrawalForm.handleSubmit(onWithdrawalSubmit)} className="space-y-4">
+                    <FormField
+                      control={withdrawalForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>الوصف</FormLabel>
+                          <FormControl>
+                            <Input placeholder="سحب أرباح شهر..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={withdrawalForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>المبلغ</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                       <FormField
+                        control={withdrawalForm.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>التصنيف</FormLabel>
+                            <FormControl>
+                              <Input disabled value="سحبيات" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={withdrawalForm.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>التاريخ</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={withdrawalForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ملاحظات</FormLabel>
+                          <FormControl>
+                            <Input placeholder="..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end pt-4">
+                      <Button type="submit">تأكيد السحب</Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="rounded-md border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">النوع</TableHead>
+                  <TableHead className="text-right">البند</TableHead>
+                  <TableHead className="text-right">المبلغ</TableHead>
+                  <TableHead className="text-right">ملاحظات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {onlyWithdrawals.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      لا توجد سحبيات مسجلة
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  onlyWithdrawals.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.date}</TableCell>
+                       <TableCell>
+                        <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                             سحب شخصي
+                         </span>
+                      </TableCell>
+                      <TableCell>{expense.title}</TableCell>
+                      <TableCell className="text-amber-700 font-medium">-{expense.amount} ر.س</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{expense.notes || '-'}</TableCell>
                     </TableRow>
                   ))
