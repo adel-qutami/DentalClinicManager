@@ -52,6 +52,7 @@ export interface Expense {
   amount: number;
   date: string;
   category: string;
+  type: 'operational' | 'fixed' | 'withdrawal';
   notes?: string;
 }
 
@@ -128,8 +129,9 @@ const INITIAL_VISITS: Visit[] = [
 ];
 
 const INITIAL_EXPENSES: Expense[] = [
-  { id: '1', title: 'فواتير كهرباء', amount: 450, date: format(subDays(new Date(), 10), 'yyyy-MM-dd'), category: 'فواتير' },
-  { id: '2', title: 'مواد طبية', amount: 1200, date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), category: 'مشتريات' },
+  { id: '1', title: 'فواتير كهرباء', amount: 450, date: format(subDays(new Date(), 10), 'yyyy-MM-dd'), category: 'فواتير', type: 'fixed' },
+  { id: '2', title: 'مواد طبية', amount: 1200, date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), category: 'مشتريات', type: 'operational' },
+  { id: '3', title: 'سحب شخصي', amount: 5000, date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), category: 'سحبيات', type: 'withdrawal' },
 ];
 
 // --- Store Implementation ---

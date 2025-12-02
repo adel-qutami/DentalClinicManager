@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar as CalendarIcon, Filter, Download } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -40,6 +40,7 @@ const expenseSchema = z.object({
   amount: z.coerce.number().min(1, "المبلغ مطلوب"),
   date: z.string().min(1, "التاريخ مطلوب"),
   category: z.string().min(1, "التصنيف مطلوب"),
+  type: z.enum(['operational', 'fixed', 'withdrawal']),
   notes: z.string().optional(),
 });
 
@@ -61,6 +62,7 @@ export default function Finance() {
       amount: 0,
       date: format(new Date(), "yyyy-MM-dd"),
       category: "مشتريات",
+      type: "operational",
       notes: "",
     },
   });
@@ -70,8 +72,8 @@ export default function Finance() {
     setIsOpen(false);
     form.reset();
     toast({
-      title: "تم تسجيل المصروف",
-      description: "تم إضافة العملية بنجاح",
+      title: "تم تسجيل العملية",
+      description: "تم إضافة البيانات بنجاح",
     });
   }
 
@@ -103,29 +105,43 @@ export default function Finance() {
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
     const income = filteredData.visits.reduce((sum, v) => sum + v.paidAmount, 0);
-    const expense = filteredData.expenses.reduce((sum, e) => sum + e.amount, 0);
-    const profit = income - expense;
     
-    const uniquePatients = new Set(filteredData.visits.map(v => v.patientId)).size;
+    // Separate expenses by type
+    const operationalExpenses = filteredData.expenses
+      .filter(e => e.type === 'operational')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    const fixedExpenses = filteredData.expenses
+      .filter(e => e.type === 'fixed')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    const withdrawals = filteredData.expenses
+      .filter(e => e.type === 'withdrawal')
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const totalExpenses = operationalExpenses + fixedExpenses;
+    const netProfit = income - totalExpenses;
+    const cashFlow = netProfit - withdrawals;
     
     return {
       income,
-      expense,
-      profit,
+      operationalExpenses,
+      fixedExpenses,
+      withdrawals,
+      totalExpenses,
+      netProfit,
+      cashFlow,
       visitsCount: filteredData.visits.length,
-      patientsCount: uniquePatients,
-      appointmentsCount: filteredData.appointments.length
     };
   }, [filteredData]);
 
   // --- Charts Data Preparation ---
   const chartData = useMemo(() => {
     if (reportType === 'yearly') {
-      // Show monthly breakdown for the year
       return Array.from({ length: 12 }, (_, i) => {
         const monthStart = new Date(parseInt(selectedYear), i, 1);
         const monthVisits = filteredData.visits.filter(v => isSameMonth(parseISO(v.date), monthStart));
-        const monthExpenses = filteredData.expenses.filter(e => isSameMonth(parseISO(e.date), monthStart));
+        const monthExpenses = filteredData.expenses.filter(e => isSameMonth(parseISO(e.date), monthStart) && e.type !== 'withdrawal');
         
         return {
           name: format(monthStart, 'MMM', { locale: ar }),
@@ -134,14 +150,13 @@ export default function Finance() {
         };
       });
     } else if (reportType === 'monthly') {
-       // Show daily breakdown for the month
        const start = startOfMonth(parseISO(selectedMonth + '-01'));
        const end = endOfMonth(start);
        const days = eachDayOfInterval({ start, end });
 
        return days.map(day => {
          const dayVisits = filteredData.visits.filter(v => isSameDay(parseISO(v.date), day));
-         const dayExpenses = filteredData.expenses.filter(e => isSameDay(parseISO(e.date), day));
+         const dayExpenses = filteredData.expenses.filter(e => isSameDay(parseISO(e.date), day) && e.type !== 'withdrawal');
          return {
            name: format(day, 'd'),
            income: dayVisits.reduce((sum, v) => sum + v.paidAmount, 0),
@@ -149,15 +164,14 @@ export default function Finance() {
          };
        });
     } else {
-      // Daily - maybe hourly? or just summary bars? Let's do simple summary bars for now
        return [
-        { name: 'الإجمالي', income: stats.income, expense: stats.expense }
+        { name: 'الإجمالي', income: stats.income, expense: stats.totalExpenses }
        ];
     }
   }, [reportType, selectedYear, selectedMonth, filteredData, stats]);
 
   const categoryDataRaw: Record<string, number> = {};
-  filteredData.expenses.forEach(e => {
+  filteredData.expenses.filter(e => e.type !== 'withdrawal').forEach(e => {
     categoryDataRaw[e.category] = (categoryDataRaw[e.category] || 0) + e.amount;
   });
   const categoryData = Object.keys(categoryDataRaw).map(k => ({ name: k, value: categoryDataRaw[k] }));
@@ -173,7 +187,7 @@ export default function Finance() {
       <Tabs defaultValue="reports" className="space-y-6">
         <TabsList>
           <TabsTrigger value="reports">التقارير والأرباح</TabsTrigger>
-          <TabsTrigger value="expenses">سجل المصروفات</TabsTrigger>
+          <TabsTrigger value="expenses">المصروفات والسحبيات</TabsTrigger>
         </TabsList>
 
         <TabsContent value="reports" className="space-y-6">
@@ -249,58 +263,56 @@ export default function Finance() {
           </Card>
 
           {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-            <Card className="col-span-2 bg-primary text-primary-foreground border-none shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-primary-foreground/80">صافي الربح</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.profit.toLocaleString()} ر.س</div>
-                <p className="text-xs mt-1 text-primary-foreground/60">
-                  {reportType === 'daily' ? 'أرباح اليوم' : reportType === 'monthly' ? 'أرباح الشهر' : 'أرباح السنة'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">إجمالي الدخل</CardTitle>
+          <div className="grid gap-4 md:grid-cols-4">
+            {/* Income Card */}
+            <Card className="border-none shadow-md">
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">إجمالي الدخل</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">{stats.income.toLocaleString()} ر.س</div>
-                <p className="text-xs mt-1 text-muted-foreground">من {stats.visitsCount} زيارة</p>
+                <p className="text-xs text-muted-foreground mt-1">من الزيارات</p>
               </CardContent>
             </Card>
-            <Card className="col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">المصروفات</CardTitle>
+
+            {/* Total Expenses Card */}
+             <Card className="border-none shadow-md">
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">إجمالي المصروفات</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{stats.expense.toLocaleString()} ر.س</div>
+                <div className="text-2xl font-bold text-red-600">{stats.totalExpenses.toLocaleString()} ر.س</div>
+                <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+                  <span>تشغيلي: {stats.operationalExpenses.toLocaleString()}</span>
+                  <span>•</span>
+                  <span>ثابت: {stats.fixedExpenses.toLocaleString()}</span>
+                </div>
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardHeader className="pb-2 p-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">عدد الزيارات</CardTitle>
+
+            {/* Net Profit Card */}
+             <Card className="bg-primary text-primary-foreground border-none shadow-md">
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-primary-foreground/80">صافي الأرباح</CardTitle>
+                <Wallet className="h-4 w-4 text-white" />
               </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-xl font-bold">{stats.visitsCount}</div>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.netProfit.toLocaleString()} ر.س</div>
+                <p className="text-xs text-primary-foreground/70 mt-1">الدخل - المصروفات</p>
               </CardContent>
             </Card>
-             <Card>
-              <CardHeader className="pb-2 p-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">المرضى</CardTitle>
+
+            {/* Withdrawals Card */}
+             <Card className="border-none shadow-md bg-amber-50">
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-900">السحبيات الشخصية</CardTitle>
+                <ArrowDownCircle className="h-4 w-4 text-amber-600" />
               </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-xl font-bold">{stats.patientsCount}</div>
-              </CardContent>
-            </Card>
-             <Card>
-              <CardHeader className="pb-2 p-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">المواعيد</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-xl font-bold">{stats.appointmentsCount}</div>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-700">{stats.withdrawals.toLocaleString()} ر.س</div>
+                <p className="text-xs text-amber-600/70 mt-1">المتبقي: {(stats.netProfit - stats.withdrawals).toLocaleString()} ر.س</p>
               </CardContent>
             </Card>
           </div>
@@ -331,7 +343,7 @@ export default function Finance() {
 
             <Card className="p-4">
               <CardHeader>
-                <CardTitle>توزيع المصروفات</CardTitle>
+                <CardTitle>توزيع المصروفات التشغيلية والثابتة</CardTitle>
               </CardHeader>
               <CardContent className="h-[300px]">
                 {categoryData.length > 0 ? (
@@ -401,14 +413,14 @@ export default function Finance() {
 
              <Card>
               <CardHeader>
-                <CardTitle>تفاصيل المصروفات في الفترة المحددة</CardTitle>
+                <CardTitle>تفاصيل المصروفات والسحبيات في الفترة المحددة</CardTitle>
               </CardHeader>
               <CardContent>
                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>التاريخ</TableHead>
-                      <TableHead>البند</TableHead>
+                      <TableHead>النوع</TableHead>
                       <TableHead>المبلغ</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -416,7 +428,15 @@ export default function Finance() {
                     {filteredData.expenses.slice(0, 5).map((e) => (
                       <TableRow key={e.id}>
                         <TableCell>{e.date}</TableCell>
-                        <TableCell>{e.title}</TableCell>
+                        <TableCell>
+                           <span className={`text-xs px-2 py-1 rounded-full ${
+                             e.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' :
+                             e.type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                           }`}>
+                             {e.type === 'withdrawal' ? 'سحب' : e.type === 'fixed' ? 'ثابت' : 'تشغيلي'}
+                           </span>
+                           <span className="mr-2">{e.title}</span>
+                        </TableCell>
                         <TableCell className="text-red-600 font-medium">{e.amount}</TableCell>
                       </TableRow>
                     ))}
@@ -434,20 +454,42 @@ export default function Finance() {
 
         <TabsContent value="expenses" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold">سجل المصروفات</h3>
+            <h3 className="text-xl font-bold">سجل المصروفات والسحبيات</h3>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="w-4 h-4" />
-                  تسجيل مصروف
+                  عملية جديدة
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>تسجيل مصروف جديد</DialogTitle>
+                  <DialogTitle>تسجيل عملية جديدة</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                     <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>نوع العملية</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="اختر النوع" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="operational">مصروف تشغيلي</SelectItem>
+                              <SelectItem value="fixed">مصروف ثابت (إيجار/رواتب)</SelectItem>
+                              <SelectItem value="withdrawal">سحب شخصي (أرباح)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="title"
@@ -455,7 +497,7 @@ export default function Finance() {
                         <FormItem>
                           <FormLabel>الوصف</FormLabel>
                           <FormControl>
-                            <Input placeholder="فاتورة كهرباء..." {...field} />
+                            <Input placeholder="فاتورة كهرباء، راتب، سحب..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -529,6 +571,7 @@ export default function Finance() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">نوع العملية</TableHead>
                   <TableHead className="text-right">البند</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
                   <TableHead className="text-right">المبلغ</TableHead>
@@ -538,14 +581,22 @@ export default function Finance() {
               <TableBody>
                 {expenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      لا توجد مصروفات مسجلة
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      لا توجد عمليات مسجلة
                     </TableCell>
                   </TableRow>
                 ) : (
                   expenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium">{expense.date}</TableCell>
+                       <TableCell>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                             expense.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' :
+                             expense.type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                           }`}>
+                             {expense.type === 'withdrawal' ? 'سحب شخصي' : expense.type === 'fixed' ? 'مصروف ثابت' : 'مصروف تشغيلي'}
+                           </span>
+                      </TableCell>
                       <TableCell>{expense.title}</TableCell>
                       <TableCell>{expense.category}</TableCell>
                       <TableCell className="text-red-600 font-medium">-{expense.amount} ر.س</TableCell>
