@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStore, Visit } from "@/lib/store";
+import { useStore, Visit, Payment } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Trash2, AlertCircle, Wallet } from "lucide-react";
+import { Plus, Search, Trash2, AlertCircle, Wallet, History } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -44,6 +44,7 @@ export default function Visits() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
+  const [newPaymentDate, setNewPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -67,12 +68,24 @@ export default function Visits() {
 
   // Calculate total dynamically
   const watchItems = form.watch("items");
-  const totalAmount = watchItems.reduce((sum, item) => sum + (item.price || 0), 0);
+  const totalAmount = watchItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
 
   function onSubmit(values: z.infer<typeof visitSchema>) {
+    const payments: Payment[] = [];
+    if (values.paidAmount > 0) {
+      payments.push({
+        id: Math.random().toString(36).substr(2, 9),
+        date: values.date,
+        amount: values.paidAmount,
+        note: 'دفعة أولية عند الإنشاء'
+      });
+    }
+
     addVisit({
       ...values,
       totalAmount,
+      payments,
+      paidAmount: values.paidAmount // Will be synced with payments in store logic if needed, or we can rely on payments sum
     });
     setIsOpen(false);
     form.reset({
@@ -99,21 +112,33 @@ export default function Visits() {
   const handleAddPayment = () => {
     if (!selectedVisit || !newPaymentAmount) return;
     
-    const payment = parseFloat(newPaymentAmount);
-    if (isNaN(payment) || payment <= 0) {
+    const paymentAmount = parseFloat(newPaymentAmount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
       toast({ variant: "destructive", description: "المبلغ غير صحيح" });
       return;
     }
 
-    const newTotalPaid = selectedVisit.paidAmount + payment;
+    const newTotalPaid = selectedVisit.paidAmount + paymentAmount;
     if (newTotalPaid > selectedVisit.totalAmount) {
       toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز إجمالي الزيارة" });
       return;
     }
 
-    updateVisit(selectedVisit.id, { paidAmount: newTotalPaid });
+    const newPayment: Payment = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: newPaymentDate,
+      amount: paymentAmount,
+      note: 'دفعة إضافية'
+    };
+
+    updateVisit(selectedVisit.id, { 
+      payments: [...selectedVisit.payments, newPayment],
+      // paidAmount will be updated by the store logic automatically based on our edit to store.tsx
+    });
+
     setPaymentDialogOpen(false);
     setNewPaymentAmount("");
+    setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
     setSelectedVisit(null);
     toast({ title: "تم تسجيل الدفعة بنجاح" });
   };
@@ -247,7 +272,12 @@ export default function Visits() {
                         render={({ field }) => (
                           <FormItem className="w-24">
                             <FormControl>
-                              <Input type="number" placeholder="السعر" {...field} />
+                              <Input 
+                                type="number" 
+                                placeholder="السعر" 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                              />
                             </FormControl>
                           </FormItem>
                         )}
@@ -270,7 +300,7 @@ export default function Visits() {
                     name="paidAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ المدفوع الآن</FormLabel>
+                        <FormLabel>المبلغ المدفوع الآن (كدفعة أولى)</FormLabel>
                         <FormControl>
                           <Input type="number" {...field} className="bg-white" />
                         </FormControl>
@@ -311,21 +341,52 @@ export default function Visits() {
 
         {/* Payment Dialog */}
         <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>سداد متبقي</DialogTitle>
+              <DialogTitle>سجل الدفعات والسداد</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-4">
+            <div className="space-y-6 pt-4">
+              
+              {/* Payment History */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-muted-foreground">سجل الدفعات السابقة</h4>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="h-8">التاريخ</TableHead>
+                        <TableHead className="h-8">المبلغ</TableHead>
+                        <TableHead className="h-8">ملاحظة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedVisit?.payments.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="py-2">{p.date}</TableCell>
+                          <TableCell className="py-2 font-medium text-green-600">{p.amount} ر.س</TableCell>
+                          <TableCell className="py-2 text-muted-foreground text-xs">{p.note || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {(!selectedVisit?.payments || selectedVisit.payments.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-sm">لا يوجد دفعات سابقة</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
               <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
                  <div className="flex justify-between">
                    <span>إجمالي الزيارة:</span>
                    <span className="font-bold">{selectedVisit?.totalAmount} ر.س</span>
                  </div>
                  <div className="flex justify-between">
-                   <span>المدفوع سابقاً:</span>
+                   <span>مجموع المدفوع:</span>
                    <span className="font-bold text-green-600">{selectedVisit?.paidAmount} ر.س</span>
                  </div>
-                 <div className="flex justify-between pt-2 border-t">
+                 <div className="flex justify-between pt-2 border-t border-black/5">
                    <span>المتبقي:</span>
                    <span className="font-bold text-red-600">
                      {selectedVisit ? selectedVisit.totalAmount - selectedVisit.paidAmount : 0} ر.س
@@ -333,19 +394,34 @@ export default function Visits() {
                  </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">مبلغ الدفعة الجديدة</label>
-                <Input 
-                  type="number" 
-                  value={newPaymentAmount} 
-                  onChange={(e) => setNewPaymentAmount(e.target.value)}
-                  placeholder="أدخل المبلغ..."
-                />
-              </div>
-
-              <Button className="w-full mt-4" onClick={handleAddPayment}>
-                تسجيل الدفعة
-              </Button>
+              {/* New Payment Form */}
+              {(selectedVisit && (selectedVisit.totalAmount - selectedVisit.paidAmount > 0)) && (
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-sm font-medium">إضافة دفعة جديدة</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">التاريخ</label>
+                      <Input 
+                        type="date"
+                        value={newPaymentDate}
+                        onChange={(e) => setNewPaymentDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">المبلغ</label>
+                      <Input 
+                        type="number" 
+                        value={newPaymentAmount} 
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                        placeholder="أدخل المبلغ..."
+                      />
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={handleAddPayment}>
+                    تسجيل الدفعة
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -395,7 +471,7 @@ export default function Visits() {
                       {visit.items.map(i => getService(i.serviceId)?.name).join(', ')}
                     </TableCell>
                     <TableCell>{visit.totalAmount} ر.س</TableCell>
-                    <TableCell className="text-green-600">{visit.paidAmount} ر.س</TableCell>
+                    <TableCell className="text-green-600 font-medium">{visit.paidAmount} ر.س</TableCell>
                     <TableCell>
                       {remaining > 0 ? (
                         <span className="inline-flex items-center gap-1 text-red-600 font-medium px-2 py-0.5 bg-red-50 rounded-full text-xs">
@@ -403,11 +479,11 @@ export default function Visits() {
                           <AlertCircle className="w-3 h-3" />
                         </span>
                       ) : (
-                        <span className="text-muted-foreground text-xs">خالص</span>
+                        <span className="text-muted-foreground text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">خالص</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {remaining > 0 && (
+                      <div className="flex gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -415,13 +491,14 @@ export default function Visits() {
                           onClick={() => {
                             setSelectedVisit(visit);
                             setNewPaymentAmount("");
+                            setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
                             setPaymentDialogOpen(true);
                           }}
                         >
-                          <Wallet className="w-3 h-3" />
-                          سداد
+                          <History className="w-3 h-3" />
+                          {remaining > 0 ? 'سداد' : 'الدفعات'}
                         </Button>
-                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

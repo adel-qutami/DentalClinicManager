@@ -34,6 +34,13 @@ export interface VisitItem {
   price: number; // Can be adjusted from default
 }
 
+export interface Payment {
+  id: string;
+  date: string;
+  amount: number;
+  note?: string;
+}
+
 export interface Visit {
   id: string;
   patientId: string;
@@ -42,7 +49,8 @@ export interface Visit {
   diagnosis?: string;
   items: VisitItem[];
   totalAmount: number;
-  paidAmount: number;
+  payments: Payment[];
+  paidAmount: number; // Computed from payments for convenience, or manual override if needed (but better to be computed)
   notes?: string;
 }
 
@@ -114,6 +122,7 @@ const INITIAL_VISITS: Visit[] = [
     doctorName: 'د. سامي',
     items: [{ serviceId: '1', price: 50 }, { serviceId: '7', price: 200 }],
     totalAmount: 250,
+    payments: [{ id: 'p1', date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), amount: 250 }],
     paidAmount: 250
   },
   { 
@@ -123,6 +132,7 @@ const INITIAL_VISITS: Visit[] = [
     doctorName: 'د. نورة',
     items: [{ serviceId: '3', price: 350 }],
     totalAmount: 350,
+    payments: [{ id: 'p2', date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), amount: 100 }],
     paidAmount: 100,
     notes: 'باقي المبلغ الاسبوع القادم'
   }
@@ -173,7 +183,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const updateVisit = (id: string, data: Partial<Visit>) => {
-    setVisits(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
+    setVisits(prev => prev.map(v => {
+      if (v.id !== id) return v;
+      const updatedVisit = { ...v, ...data };
+      // Recalculate paidAmount if payments changed
+      if (data.payments) {
+        updatedVisit.paidAmount = data.payments.reduce((sum, p) => sum + p.amount, 0);
+      }
+      return updatedVisit;
+    }));
   };
 
   const addExpense = (expense: Omit<Expense, 'id'>) => {
