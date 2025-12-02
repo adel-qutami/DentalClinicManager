@@ -69,6 +69,7 @@ interface StoreContextType {
   updateAppointment: (id: string, appt: Partial<Appointment>) => void;
   
   addVisit: (visit: Omit<Visit, 'id'>) => void;
+  updateVisit: (id: string, visit: Partial<Visit>) => void;
   
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   
@@ -169,6 +170,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setVisits(prev => [newVisit, ...prev]);
   };
 
+  const updateVisit = (id: string, data: Partial<Visit>) => {
+    setVisits(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
+  };
+
   const addExpense = (expense: Omit<Expense, 'id'>) => {
     const newExpense = { ...expense, id: Math.random().toString(36).substr(2, 9) };
     setExpenses(prev => [newExpense, ...prev]);
@@ -186,7 +191,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider value={{
       patients, services, appointments, visits, expenses,
       addPatient, updatePatient, addAppointment, updateAppointment,
-      addVisit, addExpense, addService, getPatient, getService
+      addVisit, updateVisit, addExpense, addService, getPatient, getService
     }}>
       {children}
     </StoreContext.Provider>

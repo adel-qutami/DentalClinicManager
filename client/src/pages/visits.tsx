@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useStore, Service } from "@/lib/store";
+import { useState } from "react";
+import { useStore, Visit } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,14 +18,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Search, Trash2, AlertCircle, Wallet } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
 
 const visitSchema = z.object({
   patientId: z.string().min(1, "المريض مطلوب"),
@@ -40,8 +39,12 @@ const visitSchema = z.object({
 });
 
 export default function Visits() {
-  const { visits, patients, services, addVisit, getService } = useStore();
+  const { visits, patients, services, addVisit, updateVisit, getService } = useStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
+  
   const { toast } = useToast();
   const [search, setSearch] = useState("");
 
@@ -91,6 +94,28 @@ export default function Visits() {
     if (service) {
       form.setValue(`items.${index}.price`, service.defaultPrice);
     }
+  };
+
+  const handleAddPayment = () => {
+    if (!selectedVisit || !newPaymentAmount) return;
+    
+    const payment = parseFloat(newPaymentAmount);
+    if (isNaN(payment) || payment <= 0) {
+      toast({ variant: "destructive", description: "المبلغ غير صحيح" });
+      return;
+    }
+
+    const newTotalPaid = selectedVisit.paidAmount + payment;
+    if (newTotalPaid > selectedVisit.totalAmount) {
+      toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز إجمالي الزيارة" });
+      return;
+    }
+
+    updateVisit(selectedVisit.id, { paidAmount: newTotalPaid });
+    setPaymentDialogOpen(false);
+    setNewPaymentAmount("");
+    setSelectedVisit(null);
+    toast({ title: "تم تسجيل الدفعة بنجاح" });
   };
 
   const filteredVisits = visits.filter(v => {
@@ -283,6 +308,47 @@ export default function Visits() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>سداد متبقي</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
+                 <div className="flex justify-between">
+                   <span>إجمالي الزيارة:</span>
+                   <span className="font-bold">{selectedVisit?.totalAmount} ر.س</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>المدفوع سابقاً:</span>
+                   <span className="font-bold text-green-600">{selectedVisit?.paidAmount} ر.س</span>
+                 </div>
+                 <div className="flex justify-between pt-2 border-t">
+                   <span>المتبقي:</span>
+                   <span className="font-bold text-red-600">
+                     {selectedVisit ? selectedVisit.totalAmount - selectedVisit.paidAmount : 0} ر.س
+                   </span>
+                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">مبلغ الدفعة الجديدة</label>
+                <Input 
+                  type="number" 
+                  value={newPaymentAmount} 
+                  onChange={(e) => setNewPaymentAmount(e.target.value)}
+                  placeholder="أدخل المبلغ..."
+                />
+              </div>
+
+              <Button className="w-full mt-4" onClick={handleAddPayment}>
+                تسجيل الدفعة
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex items-center gap-2 bg-card p-2 rounded-lg border w-full md:w-96">
@@ -306,12 +372,13 @@ export default function Visits() {
               <TableHead className="text-right">الإجمالي</TableHead>
               <TableHead className="text-right">المدفوع</TableHead>
               <TableHead className="text-right">المتبقي</TableHead>
+              <TableHead className="text-right">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredVisits.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   لا توجد زيارات مسجلة
                 </TableCell>
               </TableRow>
@@ -337,6 +404,23 @@ export default function Visits() {
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-xs">خالص</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {remaining > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => {
+                            setSelectedVisit(visit);
+                            setNewPaymentAmount("");
+                            setPaymentDialogOpen(true);
+                          }}
+                        >
+                          <Wallet className="w-3 h-3" />
+                          سداد
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
