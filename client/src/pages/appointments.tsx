@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAppointments, useCreateAppointment, useUpdateAppointment, usePatients, type Appointment } from "@/lib/api";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,15 +31,11 @@ const appointmentSchema = z.object({
   doctorName: z.string().min(2, "اسم الدكتور مطلوب"),
   date: z.string().min(1, "التاريخ مطلوب"),
   period: z.enum(["morning", "evening"]),
-  status: z.enum(["scheduled", "completed", "cancelled"]),
   notes: z.string().optional(),
 });
 
 export default function Appointments() {
-  const { data: appointments = [], isLoading } = useAppointments();
-  const { data: patients = [] } = usePatients();
-  const createMutation = useCreateAppointment();
-  const updateMutation = useUpdateAppointment();
+  const { appointments, patients, addAppointment, updateAppointment } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
@@ -50,49 +46,27 @@ export default function Appointments() {
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
       period: "morning",
-      status: "scheduled",
       notes: "",
     },
   });
 
-  async function onSubmit(values: z.infer<typeof appointmentSchema>) {
-    try {
-      await createMutation.mutateAsync(values as any);
-      setIsOpen(false);
-      form.reset();
-      toast({
-        title: "تم حجز الموعد",
-        description: "تم إضافة الموعد إلى الجدول بنجاح",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "فشل حجز الموعد",
-      });
-    }
+  function onSubmit(values: z.infer<typeof appointmentSchema>) {
+    addAppointment({ ...values, status: 'scheduled' });
+    setIsOpen(false);
+    form.reset();
+    toast({
+      title: "تم حجز الموعد",
+      description: "تم إضافة الموعد إلى الجدول بنجاح",
+    });
   }
 
-  const handleStatusChange = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
-    try {
-      await updateMutation.mutateAsync({ id, data: { status } as any });
-      toast({ description: "تم تحديث حالة الموعد" });
-    } catch (error) {
-      toast({ variant: "destructive", description: "فشل تحديث الحالة" });
-    }
+  const handleStatusChange = (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
+    updateAppointment(id, { status });
+    toast({ description: "تم تحديث حالة الموعد" });
   };
 
-  const sortedAppointments = [...(appointments as Appointment[])].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        <h2 className="text-3xl font-bold">جاري التحميل...</h2>
-      </div>
-    );
-  }
+  // Sort appointments by date
+  const sortedAppointments = [...appointments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-8">
@@ -103,12 +77,8 @@ export default function Appointments() {
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
               موعد جديد
             </Button>
           </DialogTrigger>
@@ -117,7 +87,7 @@ export default function Appointments() {
               <DialogTitle>حجز موعد جديد</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-testid="form-add-appointment">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="patientId"
@@ -131,7 +101,7 @@ export default function Appointments() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {(patients as any[]).map(p => (
+                          {patients.map(p => (
                             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -165,13 +135,21 @@ export default function Appointments() {
                   />
                   <FormField
                     control={form.control}
-                    name="date"
+                    name="period"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>التاريخ</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
+                        <FormLabel>الفترة</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="الفترة" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="morning">صباحاً</SelectItem>
+                            <SelectItem value="evening">مساءً</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -179,21 +157,13 @@ export default function Appointments() {
                 </div>
                 <FormField
                   control={form.control}
-                  name="period"
+                  name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>الوقت</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر الوقت" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="morning">صباحي</SelectItem>
-                          <SelectItem value="evening">مسائي</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>التاريخ</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -205,62 +175,74 @@ export default function Appointments() {
                     <FormItem>
                       <FormLabel>ملاحظات</FormLabel>
                       <FormControl>
-                        <Input placeholder="ملاحظات إضافية..." {...field} />
+                        <Input placeholder="سبب الزيارة..." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-appointment">
-                  {createMutation.isPending ? "جاري الحجز..." : "حجز الموعد"}
-                </Button>
+                <div className="flex justify-end pt-4">
+                  <Button type="submit">حفظ الموعد</Button>
+                </div>
               </form>
             </Form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="border rounded-lg">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>المريض</TableHead>
-              <TableHead>الدكتور</TableHead>
-              <TableHead>التاريخ</TableHead>
-              <TableHead>الوقت</TableHead>
-              <TableHead>الحالة</TableHead>
+              <TableHead className="text-right">التاريخ</TableHead>
+              <TableHead className="text-right">المريض</TableHead>
+              <TableHead className="text-right">الدكتور</TableHead>
+              <TableHead className="text-right">الفترة</TableHead>
+              <TableHead className="text-right">الحالة</TableHead>
+              <TableHead className="text-right">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedAppointments.map((appointment) => {
-              const patient = (patients as any[]).find(p => p.id === appointment.patientId);
-              const getStatusColor = (status: string) => {
-                if (status === "completed") return "bg-green-50 dark:bg-green-950";
-                if (status === "cancelled") return "bg-red-50 dark:bg-red-950";
-                return "bg-blue-50 dark:bg-blue-950";
-              };
-
-              return (
-                <TableRow key={appointment.id} className={getStatusColor(appointment.status)} data-testid={`row-appointment-${appointment.id}`}>
-                  <TableCell data-testid={`text-patient-${appointment.patientId}`}>{patient?.name || "—"}</TableCell>
-                  <TableCell>{appointment.doctorName}</TableCell>
-                  <TableCell>{format(new Date(appointment.date), "yyyy-MM-dd")}</TableCell>
-                  <TableCell>{appointment.period === "morning" ? "صباحي" : "مسائي"}</TableCell>
-                  <TableCell>
-                    <Select value={appointment.status} onValueChange={(status) => handleStatusChange(appointment.id, status as any)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="scheduled">مجدول</SelectItem>
-                        <SelectItem value="completed">مكتمل</SelectItem>
-                        <SelectItem value="cancelled">ملغي</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {sortedAppointments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  لا توجد مواعيد مجدولة
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedAppointments.map((appt) => {
+                const patient = patients.find(p => p.id === appt.patientId);
+                return (
+                  <TableRow key={appt.id}>
+                    <TableCell className="font-medium">{appt.date}</TableCell>
+                    <TableCell>{patient?.name || 'مريض محذوف'}</TableCell>
+                    <TableCell>{appt.doctorName}</TableCell>
+                    <TableCell>{appt.period === 'morning' ? 'صباحاً' : 'مساءً'}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        appt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                        appt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {appt.status === 'scheduled' ? 'مجدول' : appt.status === 'completed' ? 'مكتمل' : 'ملغي'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {appt.status === 'scheduled' && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(appt.id, 'completed')}>
+                            إتمام
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatusChange(appt.id, 'cancelled')}>
+                            إلغاء
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>

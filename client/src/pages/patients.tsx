@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { usePatients, useCreatePatient, type Patient } from "@/lib/api";
+import { useStore, Patient } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, User, Phone, FileText, Loader2 } from "lucide-react";
+import { Plus, Search, User, Phone, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,8 +35,7 @@ const patientSchema = z.object({
 });
 
 export default function Patients() {
-  const { data: patients = [], isLoading } = usePatients();
-  const createMutation = useCreatePatient();
+  const { patients, addPatient } = useStore();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
@@ -52,39 +51,18 @@ export default function Patients() {
     },
   });
 
-  const filteredPatients = (patients as Patient[]).filter((p) =>
+  const filteredPatients = patients.filter((p) =>
     p.name.includes(search) || p.phone.includes(search)
   );
 
-  async function onSubmit(values: z.infer<typeof patientSchema>) {
-    try {
-      await createMutation.mutateAsync(values as any);
-      setIsOpen(false);
-      form.reset();
-      toast({
-        title: "تمت العملية بنجاح",
-        description: "تم إضافة ملف المريض الجديد",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "فشل إضافة المريض",
-      });
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">المرضى</h2>
-            <p className="text-muted-foreground mt-2">جاري التحميل...</p>
-          </div>
-        </div>
-      </div>
-    );
+  function onSubmit(values: z.infer<typeof patientSchema>) {
+    addPatient(values);
+    setIsOpen(false);
+    form.reset();
+    toast({
+      title: "تمت العملية بنجاح",
+      description: "تم إضافة ملف المريض الجديد",
+    });
   }
 
   return (
@@ -96,12 +74,8 @@ export default function Patients() {
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
               مريض جديد
             </Button>
           </DialogTrigger>
@@ -110,7 +84,7 @@ export default function Patients() {
               <DialogTitle>إضافة مريض جديد</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-testid="form-add-patient">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="name"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useVisits, useCreateVisit, useUpdateVisit, useServices, usePatients, type Visit } from "@/lib/api";
+import { useStore, Visit, Payment } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, AlertCircle, Wallet, History } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,18 +34,18 @@ const visitSchema = z.object({
     serviceId: z.string().min(1, "الخدمة مطلوبة"),
     price: z.coerce.number().min(0, "السعر مطلوب")
   })).min(1, "يجب إضافة خدمة واحدة على الأقل"),
-  totalAmount: z.coerce.number(),
   paidAmount: z.coerce.number().min(0),
   notes: z.string().optional(),
 });
 
 export default function Visits() {
-  const { data: visits = [], isLoading } = useVisits();
-  const { data: patients = [] } = usePatients();
-  const { data: services = [] } = useServices();
-  const createMutation = useCreateVisit();
-  const updateMutation = useUpdateVisit();
+  const { visits, patients, services, addVisit, updateVisit, getService } = useStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
+  const [newPaymentDate, setNewPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  
   const { toast } = useToast();
   const [search, setSearch] = useState("");
 
@@ -56,7 +56,6 @@ export default function Visits() {
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
       items: [{ serviceId: "", price: 0 }],
-      totalAmount: 0,
       paidAmount: 0,
       notes: "",
     },
@@ -67,50 +66,87 @@ export default function Visits() {
     name: "items",
   });
 
+  // Calculate total dynamically
   const watchItems = form.watch("items");
   const totalAmount = watchItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
 
-  async function onSubmit(values: z.infer<typeof visitSchema>) {
-    try {
-      await createMutation.mutateAsync({ ...values, totalAmount } as any);
-      setIsOpen(false);
-      form.reset({
-        patientId: "",
-        doctorName: "د. سامي",
-        date: format(new Date(), "yyyy-MM-dd"),
-        items: [{ serviceId: "", price: 0 }],
-        totalAmount: 0,
-        paidAmount: 0,
-        notes: "",
-      });
-      toast({
-        title: "تم تسجيل الزيارة",
-        description: "تم حفظ بيانات الزيارة والدفع بنجاح",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "فشل تسجيل الزيارة",
+  function onSubmit(values: z.infer<typeof visitSchema>) {
+    const payments: Payment[] = [];
+    if (values.paidAmount > 0) {
+      payments.push({
+        id: Math.random().toString(36).substr(2, 9),
+        date: values.date,
+        amount: values.paidAmount,
+        note: 'دفعة أولية عند الإنشاء'
       });
     }
+
+    addVisit({
+      ...values,
+      totalAmount,
+      payments,
+      paidAmount: values.paidAmount // Will be synced with payments in store logic if needed, or we can rely on payments sum
+    });
+    setIsOpen(false);
+    form.reset({
+       patientId: "",
+      doctorName: "د. سامي",
+      date: format(new Date(), "yyyy-MM-dd"),
+      items: [{ serviceId: "", price: 0 }],
+      paidAmount: 0,
+      notes: "",
+    });
+    toast({
+      title: "تم تسجيل الزيارة",
+      description: "تم حفظ بيانات الزيارة والدفع بنجاح",
+    });
   }
 
   const handleServiceChange = (index: number, serviceId: string) => {
-    const service = (services as any[]).find(s => s.id === serviceId);
+    const service = services.find(s => s.id === serviceId);
     if (service) {
-      form.setValue(`items.${index}.price`, parseFloat(service.defaultPrice || 0));
+      form.setValue(`items.${index}.price`, service.defaultPrice);
     }
   };
 
-  const filteredVisits = (visits as Visit[]).filter(v => {
-    const patient = (patients as any[]).find(p => p.id === v.patientId);
+  const handleAddPayment = () => {
+    if (!selectedVisit || !newPaymentAmount) return;
+    
+    const paymentAmount = parseFloat(newPaymentAmount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      toast({ variant: "destructive", description: "المبلغ غير صحيح" });
+      return;
+    }
+
+    const newTotalPaid = selectedVisit.paidAmount + paymentAmount;
+    if (newTotalPaid > selectedVisit.totalAmount) {
+      toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز إجمالي الزيارة" });
+      return;
+    }
+
+    const newPayment: Payment = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: newPaymentDate,
+      amount: paymentAmount,
+      note: 'دفعة إضافية'
+    };
+
+    updateVisit(selectedVisit.id, { 
+      payments: [...selectedVisit.payments, newPayment],
+      // paidAmount will be updated by the store logic automatically based on our edit to store.tsx
+    });
+
+    setPaymentDialogOpen(false);
+    setNewPaymentAmount("");
+    setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    setSelectedVisit(null);
+    toast({ title: "تم تسجيل الدفعة بنجاح" });
+  };
+
+  const filteredVisits = visits.filter(v => {
+    const patient = patients.find(p => p.id === v.patientId);
     return patient?.name.includes(search) || false;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  if (isLoading) {
-    return <div className="space-y-8"><h2 className="text-3xl font-bold">جاري التحميل...</h2></div>;
-  }
 
   return (
     <div className="space-y-8">
@@ -121,12 +157,8 @@ export default function Visits() {
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
               زيارة جديدة
             </Button>
           </DialogTrigger>
@@ -135,116 +167,262 @@ export default function Visits() {
               <DialogTitle>تسجيل زيارة جديدة</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-testid="form-add-visit">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="patientId" render={({ field }) => (
+                  <FormField
+                    control={form.control}
+                    name="patientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>المريض</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر المريض" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {patients.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="doctorName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>الدكتور المعالج</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر الدكتور" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="د. سامي">د. سامي</SelectItem>
+                            <SelectItem value="د. نورة">د. نورة</SelectItem>
+                            <SelectItem value="د. أحمد">د. أحمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>المريض</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر المريض" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(patients as any[]).map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="date" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>التاريخ</FormLabel>
+                      <FormLabel>تاريخ الزيارة</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
-                  )} />
-                </div>
-                <FormField control={form.control} name="doctorName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>الدكتور</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر الدكتور" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="د. سامي">د. سامي</SelectItem>
-                        <SelectItem value="د. نورة">د. نورة</SelectItem>
-                        <SelectItem value="د. أحمد">د. أحمد</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                  )}
+                />
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">الخدمات</label>
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">الخدمات المقدمة</h4>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ serviceId: "", price: 0 })}>
+                      <Plus className="w-3 h-3 ml-1" />
+                      إضافة خدمة
+                    </Button>
+                  </div>
+                  
                   {fields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2">
-                      <FormField control={form.control} name={`items.${index}.serviceId`} render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <Select onValueChange={(val) => { field.onChange(val); handleServiceChange(index, val); }} defaultValue={field.value}>
+                    <div key={field.id} className="flex gap-2 items-end">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.serviceId`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <Select 
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                handleServiceChange(index, val);
+                              }} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="الخدمة" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {services.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.price`}
+                        render={({ field }) => (
+                          <FormItem className="w-24">
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="اختر الخدمة" />
-                              </SelectTrigger>
+                              <Input 
+                                type="number" 
+                                placeholder="السعر" 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {(services as any[]).map(s => (
-                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name={`items.${index}.price`} render={({ field }) => (
-                        <FormItem className="w-24">
-                          <FormControl>
-                            <Input type="number" placeholder="السعر" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                        حذف
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => append({ serviceId: "", price: 0 })}>
-                    + إضافة خدمة
-                  </Button>
                 </div>
 
-                <div className="bg-muted p-3 rounded-lg">
-                  <div className="flex justify-between text-sm">
-                    <span>الإجمالي:</span>
-                    <span className="font-bold">{totalAmount}</span>
+                <div className="bg-primary/5 p-4 rounded-lg space-y-4">
+                  <div className="flex justify-between items-center text-lg font-bold">
+                    <span>الإجمالي المطلوب:</span>
+                    <span>{totalAmount} ر.س</span>
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="paidAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>المبلغ المدفوع الآن (كدفعة أولى)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} className="bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                   <div className="flex justify-between items-center text-sm font-medium pt-2 border-t border-primary/20">
+                    <span>المتبقي:</span>
+                    <span className={totalAmount - form.watch('paidAmount') > 0 ? "text-red-600" : "text-green-600"}>
+                      {Math.max(0, totalAmount - form.watch('paidAmount'))} ر.س
+                    </span>
                   </div>
                 </div>
 
-                <FormField control={form.control} name="paidAmount" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>المبلغ المدفوع</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ملاحظات</FormLabel>
+                      <FormControl>
+                        <Input placeholder="ملاحظات إضافية..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-visit">
-                  {createMutation.isPending ? "جاري الحفظ..." : "حفظ الزيارة"}
-                </Button>
+                <div className="flex justify-end pt-4">
+                  <Button type="submit" className="w-full">حفظ وإنهاء الزيارة</Button>
+                </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>سجل الدفعات والسداد</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              
+              {/* Payment History */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-muted-foreground">سجل الدفعات السابقة</h4>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="h-8">التاريخ</TableHead>
+                        <TableHead className="h-8">المبلغ</TableHead>
+                        <TableHead className="h-8">ملاحظة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedVisit?.payments.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="py-2">{p.date}</TableCell>
+                          <TableCell className="py-2 font-medium text-green-600">{p.amount} ر.س</TableCell>
+                          <TableCell className="py-2 text-muted-foreground text-xs">{p.note || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {(!selectedVisit?.payments || selectedVisit.payments.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-sm">لا يوجد دفعات سابقة</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
+                 <div className="flex justify-between">
+                   <span>إجمالي الزيارة:</span>
+                   <span className="font-bold">{selectedVisit?.totalAmount} ر.س</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span>مجموع المدفوع:</span>
+                   <span className="font-bold text-green-600">{selectedVisit?.paidAmount} ر.س</span>
+                 </div>
+                 <div className="flex justify-between pt-2 border-t border-black/5">
+                   <span>المتبقي:</span>
+                   <span className="font-bold text-red-600">
+                     {selectedVisit ? selectedVisit.totalAmount - selectedVisit.paidAmount : 0} ر.س
+                   </span>
+                 </div>
+              </div>
+
+              {/* New Payment Form */}
+              {(selectedVisit && (selectedVisit.totalAmount - selectedVisit.paidAmount > 0)) && (
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-sm font-medium">إضافة دفعة جديدة</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">التاريخ</label>
+                      <Input 
+                        type="date"
+                        value={newPaymentDate}
+                        onChange={(e) => setNewPaymentDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">المبلغ</label>
+                      <Input 
+                        type="number" 
+                        value={newPaymentAmount} 
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                        placeholder="أدخل المبلغ..."
+                      />
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={handleAddPayment}>
+                    تسجيل الدفعة
+                  </Button>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -252,42 +430,80 @@ export default function Visits() {
       <div className="flex items-center gap-2 bg-card p-2 rounded-lg border w-full md:w-96">
         <Search className="w-5 h-5 text-muted-foreground" />
         <Input 
-          placeholder="بحث بالاسم..." 
+          placeholder="بحث باسم المريض..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border-none shadow-none focus-visible:ring-0"
         />
       </div>
 
-      <div className="border rounded-lg overflow-x-auto">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>المريض</TableHead>
-              <TableHead>الدكتور</TableHead>
-              <TableHead>التاريخ</TableHead>
-              <TableHead>الإجمالي</TableHead>
-              <TableHead>المدفوع</TableHead>
-              <TableHead>الرصيد</TableHead>
+              <TableHead className="text-right">التاريخ</TableHead>
+              <TableHead className="text-right">المريض</TableHead>
+              <TableHead className="text-right">الدكتور</TableHead>
+              <TableHead className="text-right">الخدمات</TableHead>
+              <TableHead className="text-right">الإجمالي</TableHead>
+              <TableHead className="text-right">المدفوع</TableHead>
+              <TableHead className="text-right">المتبقي</TableHead>
+              <TableHead className="text-right">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredVisits.map((visit) => {
-              const patient = (patients as any[]).find(p => p.id === visit.patientId);
-              const balance = parseFloat(visit.totalAmount || 0) - parseFloat(visit.paidAmount || 0);
-              return (
-                <TableRow key={visit.id} data-testid={`row-visit-${visit.id}`}>
-                  <TableCell data-testid={`text-patient-${visit.patientId}`}>{patient?.name || "—"}</TableCell>
-                  <TableCell>{visit.doctorName}</TableCell>
-                  <TableCell>{format(new Date(visit.date), "yyyy-MM-dd")}</TableCell>
-                  <TableCell>{visit.totalAmount}</TableCell>
-                  <TableCell className="text-green-600 font-medium">{visit.paidAmount}</TableCell>
-                  <TableCell className={balance > 0 ? "text-red-600" : "text-green-600"}>
-                    {balance}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {filteredVisits.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  لا توجد زيارات مسجلة
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredVisits.map((visit) => {
+                const patient = patients.find(p => p.id === visit.patientId);
+                const remaining = visit.totalAmount - visit.paidAmount;
+                return (
+                  <TableRow key={visit.id}>
+                    <TableCell className="font-medium">{visit.date}</TableCell>
+                    <TableCell>{patient?.name}</TableCell>
+                    <TableCell>{visit.doctorName}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
+                      {visit.items.map(i => getService(i.serviceId)?.name).join(', ')}
+                    </TableCell>
+                    <TableCell>{visit.totalAmount} ر.س</TableCell>
+                    <TableCell className="text-green-600 font-medium">{visit.paidAmount} ر.س</TableCell>
+                    <TableCell>
+                      {remaining > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-red-600 font-medium px-2 py-0.5 bg-red-50 rounded-full text-xs">
+                          {remaining} ر.س
+                          <AlertCircle className="w-3 h-3" />
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">خالص</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => {
+                            setSelectedVisit(visit);
+                            setNewPaymentAmount("");
+                            setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+                            setPaymentDialogOpen(true);
+                          }}
+                        >
+                          <History className="w-3 h-3" />
+                          {remaining > 0 ? 'سداد' : 'الدفعات'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
