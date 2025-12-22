@@ -3,11 +3,21 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAppointmentSchema, insertServiceSchema, insertVisitSchema, insertExpenseSchema, insertVisitItemSchema } from "@shared/schema";
 import { z } from "zod";
+import { seedDatabase } from "./seed";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Seed endpoint - only for testing
+  app.post("/api/seed", async (req, res) => {
+    try {
+      const result = await seedDatabase();
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to seed database" });
+    }
+  });
   // Patients endpoints
   app.get("/api/patients", async (req, res) => {
     const patients = await storage.getAllPatients();
