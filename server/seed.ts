@@ -45,33 +45,33 @@ async function seed() {
         {
           name: "أحمد محمد",
           phone: "0501234567",
-          age: 30,
+          age: Number(30),
           gender: "male",
           notes: "حساسية بنسلين",
         },
         {
           name: "سارة علي",
           phone: "0559876543",
-          age: 25,
+          age: Number(25),
           gender: "female",
         },
         {
           name: "خالد عمر",
           phone: "0541112223",
-          age: 45,
+          age: Number(45),
           gender: "male",
           notes: "سكر",
         },
         {
           name: "منى يوسف",
           phone: "0563334445",
-          age: 28,
+          age: Number(28),
           gender: "female",
         },
         {
           name: "ياسر حسن",
           phone: "0509998887",
-          age: 12,
+          age: Number(12),
           gender: "male",
         },
       ])
@@ -114,15 +114,15 @@ async function seed() {
           patientId: patient1.id,
           date: format(subDays(new Date(), 2), "yyyy-MM-dd"),
           doctorName: "د. سامي",
-          totalAmount: "250",
-          paidAmount: "250",
+          totalAmount: Number(250),
+          paidAmount: Number(250),
         },
         {
           patientId: patient4.id,
           date: format(subDays(new Date(), 5), "yyyy-MM-dd"),
           doctorName: "د. نورة",
-          totalAmount: "350",
-          paidAmount: "100",
+          totalAmount: Number(350),
+          paidAmount: Number(100),
           notes: "باقي المبلغ الاسبوع القادم",
         },
       ])
@@ -130,9 +130,9 @@ async function seed() {
 
     // Add visit items
     await db.insert(visitItems).values([
-      { visitId: visit1.id, serviceId: service1.id, price: "50" },
-      { visitId: visit1.id, serviceId: service7.id, price: "200" },
-      { visitId: visit2.id, serviceId: service3.id, price: "350" },
+      { visitId: visit1.id, serviceId: service1.id, price: Number(50) },
+      { visitId: visit1.id, serviceId: service7.id, price: Number(200) },
+      { visitId: visit2.id, serviceId: service3.id, price: Number(350) },
     ]);
 
     console.log("✓ Added 2 visits with items");
@@ -141,21 +141,21 @@ async function seed() {
     await db.insert(expenses).values([
       {
         title: "فواتير كهرباء",
-        amount: "450",
+        amount: Number(450),
         date: format(subDays(new Date(), 10), "yyyy-MM-dd"),
         category: "فواتير",
         type: "fixed",
       },
       {
         title: "مواد طبية",
-        amount: "1200",
+        amount: Number(1200),
         date: format(subDays(new Date(), 5), "yyyy-MM-dd"),
         category: "مشتريات",
         type: "operational",
       },
       {
         title: "سحب شخصي",
-        amount: "5000",
+        amount: Number(5000),
         date: format(subDays(new Date(), 2), "yyyy-MM-dd"),
         category: "سحبيات",
         type: "withdrawal",

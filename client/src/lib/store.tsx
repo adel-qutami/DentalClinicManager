@@ -233,14 +233,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         const updated = await res.json();
-        setVisits(prev => {
-          const newVisits = prev.map(v => v.id === id ? updated : v);
-          if (data.payments) {
-            const paidAmount = data.payments.reduce((sum, p) => sum + Number(p.amount), 0);
-            return newVisits.map(v => v.id === id ? { ...updated, paidAmount } : v);
-          }
-          return newVisits;
-        });
+        setVisits(prev => prev.map(v => v.id === id ? updated : v));
       }
     } catch (error) {
       console.error('Failed to update visit:', error);

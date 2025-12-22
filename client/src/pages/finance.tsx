@@ -141,19 +141,19 @@ export default function Finance() {
 
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
-    const income = filteredData.visits.reduce((sum, v) => sum + v.paidAmount, 0);
+    const income = filteredData.visits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
     
     const operationalExpenses = filteredData.expenses
       .filter(e => e.type === 'operational')
-      .reduce((sum, e) => sum + e.amount, 0);
+      .reduce((sum, e) => sum + Number(e.amount), 0);
       
     const fixedExpenses = filteredData.expenses
       .filter(e => e.type === 'fixed')
-      .reduce((sum, e) => sum + e.amount, 0);
+      .reduce((sum, e) => sum + Number(e.amount), 0);
       
     const withdrawals = filteredData.expenses
       .filter(e => e.type === 'withdrawal')
-      .reduce((sum, e) => sum + e.amount, 0);
+      .reduce((sum, e) => sum + Number(e.amount), 0);
 
     const totalExpenses = operationalExpenses + fixedExpenses;
     const netProfit = income - totalExpenses;
@@ -176,7 +176,7 @@ export default function Finance() {
     filteredData.visits.forEach(v => {
       if (!doctorStats[v.doctorName]) doctorStats[v.doctorName] = { visits: 0, revenue: 0 };
       doctorStats[v.doctorName].visits += 1;
-      doctorStats[v.doctorName].revenue += v.paidAmount;
+      doctorStats[v.doctorName].revenue += Number(v.paidAmount);
     });
     const doctorData = Object.keys(doctorStats).map(k => ({ 
       name: k, 
@@ -239,8 +239,8 @@ export default function Finance() {
         
         return {
           name: format(monthStart, 'MMM', { locale: ar }),
-          income: monthVisits.reduce((sum, v) => sum + v.paidAmount, 0),
-          expense: monthExpenses.reduce((sum, e) => sum + e.amount, 0),
+          income: monthVisits.reduce((sum, v) => sum + Number(v.paidAmount), 0),
+          expense: monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
         };
       });
     } else if (reportType === 'monthly') {
@@ -253,8 +253,8 @@ export default function Finance() {
          const dayExpenses = filteredData.expenses.filter(e => isSameDay(parseISO(e.date), day) && e.type !== 'withdrawal');
          return {
            name: format(day, 'd'),
-           income: dayVisits.reduce((sum, v) => sum + v.paidAmount, 0),
-           expense: dayExpenses.reduce((sum, e) => sum + e.amount, 0),
+           income: dayVisits.reduce((sum, v) => sum + Number(v.paidAmount), 0),
+           expense: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
          };
        });
     } else {
@@ -266,7 +266,7 @@ export default function Finance() {
 
   const categoryDataRaw: Record<string, number> = {};
   filteredData.expenses.filter(e => e.type !== 'withdrawal').forEach(e => {
-    categoryDataRaw[e.category] = (categoryDataRaw[e.category] || 0) + e.amount;
+    categoryDataRaw[e.category] = (categoryDataRaw[e.category] || 0) + Number(e.amount);
   });
   const categoryData = Object.keys(categoryDataRaw).map(k => ({ name: k, value: categoryDataRaw[k] }));
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];

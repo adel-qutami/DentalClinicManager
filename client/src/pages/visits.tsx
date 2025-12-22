@@ -39,7 +39,7 @@ const visitSchema = z.object({
 });
 
 export default function Visits() {
-  const { visits, patients, services, addVisit, updateVisit, getService } = useStore();
+  const { visits, patients, services, loading, addVisit, updateVisit, getService } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
@@ -71,21 +71,10 @@ export default function Visits() {
   const totalAmount = watchItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
 
   function onSubmit(values: z.infer<typeof visitSchema>) {
-    const payments: Payment[] = [];
-    if (values.paidAmount > 0) {
-      payments.push({
-        id: Math.random().toString(36).substr(2, 9),
-        date: values.date,
-        amount: values.paidAmount,
-        note: 'دفعة أولية عند الإنشاء'
-      });
-    }
-
     addVisit({
       ...values,
       totalAmount,
-      payments,
-      paidAmount: values.paidAmount // Will be synced with payments in store logic if needed, or we can rely on payments sum
+      paidAmount: values.paidAmount
     });
     setIsOpen(false);
     form.reset({
@@ -103,9 +92,9 @@ export default function Visits() {
   }
 
   const handleServiceChange = (index: number, serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
+    const service = services?.find(s => s.id === serviceId);
     if (service) {
-      form.setValue(`items.${index}.price`, service.defaultPrice);
+      form.setValue(`items.${index}.price`, Number(service.defaultPrice));
     }
   };
 
@@ -118,8 +107,8 @@ export default function Visits() {
       return;
     }
 
-    const newTotalPaid = selectedVisit.paidAmount + paymentAmount;
-    if (newTotalPaid > selectedVisit.totalAmount) {
+    const newTotalPaid = Number(selectedVisit.paidAmount) + paymentAmount;
+    if (newTotalPaid > Number(selectedVisit.totalAmount)) {
       toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز إجمالي الزيارة" });
       return;
     }
@@ -132,8 +121,7 @@ export default function Visits() {
     };
 
     updateVisit(selectedVisit.id, { 
-      payments: [...selectedVisit.payments, newPayment],
-      // paidAmount will be updated by the store logic automatically based on our edit to store.tsx
+      paidAmount: newTotalPaid
     });
 
     setPaymentDialogOpen(false);
@@ -143,8 +131,12 @@ export default function Visits() {
     toast({ title: "تم تسجيل الدفعة بنجاح" });
   };
 
-  const filteredVisits = visits.filter(v => {
-    const patient = patients.find(p => p.id === v.patientId);
+  if (loading) {
+    return <div className="p-8 text-center">جاري التحميل...</div>;
+  }
+
+  const filteredVisits = (visits || []).filter(v => {
+    const patient = (patients || []).find(p => p.id === v.patientId);
     return patient?.name.includes(search) || false;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -182,7 +174,7 @@ export default function Visits() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {patients.map(p => (
+                            {(patients || []).map(p => (
                               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                             ))}
                           </SelectContent>
@@ -360,16 +352,14 @@ export default function Visits() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedVisit?.payments.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="py-2">{p.date}</TableCell>
-                          <TableCell className="py-2 font-medium text-green-600">{p.amount} ر.س</TableCell>
-                          <TableCell className="py-2 text-muted-foreground text-xs">{p.note || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                      {(!selectedVisit?.payments || selectedVisit.payments.length === 0) && (
+                      {(!selectedVisit) && (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-sm">لا يوجد دفعات سابقة</TableCell>
+                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-sm">لا يوجد بيانات</TableCell>
+                        </TableRow>
+                      )}
+                      {selectedVisit && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-sm">السجل متاح</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -380,22 +370,22 @@ export default function Visits() {
               <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
                  <div className="flex justify-between">
                    <span>إجمالي الزيارة:</span>
-                   <span className="font-bold">{selectedVisit?.totalAmount} ر.س</span>
+                   <span className="font-bold">{Number(selectedVisit?.totalAmount)} ر.س</span>
                  </div>
                  <div className="flex justify-between">
                    <span>مجموع المدفوع:</span>
-                   <span className="font-bold text-green-600">{selectedVisit?.paidAmount} ر.س</span>
+                   <span className="font-bold text-green-600">{Number(selectedVisit?.paidAmount)} ر.س</span>
                  </div>
                  <div className="flex justify-between pt-2 border-t border-black/5">
                    <span>المتبقي:</span>
                    <span className="font-bold text-red-600">
-                     {selectedVisit ? selectedVisit.totalAmount - selectedVisit.paidAmount : 0} ر.س
+                     {selectedVisit ? Number(selectedVisit.totalAmount) - Number(selectedVisit.paidAmount) : 0} ر.س
                    </span>
                  </div>
               </div>
 
               {/* New Payment Form */}
-              {(selectedVisit && (selectedVisit.totalAmount - selectedVisit.paidAmount > 0)) && (
+              {(selectedVisit && (Number(selectedVisit.totalAmount) - Number(selectedVisit.paidAmount) > 0)) && (
                 <div className="space-y-4 border-t pt-4">
                   <h4 className="text-sm font-medium">إضافة دفعة جديدة</h4>
                   <div className="grid grid-cols-2 gap-4">
