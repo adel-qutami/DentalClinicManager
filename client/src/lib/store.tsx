@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { addDays, format, subDays } from 'date-fns';
 
 // --- Types ---
 
@@ -16,14 +15,14 @@ export interface Patient {
 export interface Service {
   id: string;
   name: string;
-  defaultPrice: number;
+  defaultPrice: string | number;
 }
 
 export interface Appointment {
   id: string;
   patientId: string;
   doctorName: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   period: 'morning' | 'evening';
   status: 'scheduled' | 'completed' | 'cancelled';
   notes?: string;
@@ -31,13 +30,13 @@ export interface Appointment {
 
 export interface VisitItem {
   serviceId: string;
-  price: number; // Can be adjusted from default
+  price: number;
 }
 
 export interface Payment {
   id: string;
   date: string;
-  amount: number;
+  amount: string | number;
   note?: string;
 }
 
@@ -48,16 +47,15 @@ export interface Visit {
   doctorName: string;
   diagnosis?: string;
   items: VisitItem[];
-  totalAmount: number;
-  payments: Payment[];
-  paidAmount: number; // Computed from payments for convenience, or manual override if needed (but better to be computed)
+  totalAmount: string | number;
+  paidAmount: string | number;
   notes?: string;
 }
 
 export interface Expense {
   id: string;
   title: string;
-  amount: number;
+  amount: string | number;
   date: string;
   category: string;
   type: 'operational' | 'fixed' | 'withdrawal';
@@ -70,138 +68,225 @@ interface StoreContextType {
   appointments: Appointment[];
   visits: Visit[];
   expenses: Expense[];
+  loading: boolean;
   
-  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => void;
-  updatePatient: (id: string, patient: Partial<Patient>) => void;
+  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<void>;
+  updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   
-  addAppointment: (appt: Omit<Appointment, 'id'>) => void;
-  updateAppointment: (id: string, appt: Partial<Appointment>) => void;
+  addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<void>;
+  updateAppointment: (id: string, appt: Partial<Appointment>) => Promise<void>;
   
-  addVisit: (visit: Omit<Visit, 'id'>) => void;
-  updateVisit: (id: string, visit: Partial<Visit>) => void;
+  addVisit: (visit: Omit<Visit, 'id'>) => Promise<void>;
+  updateVisit: (id: string, visit: Partial<Visit>) => Promise<void>;
   
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   
-  addService: (service: Omit<Service, 'id'>) => void;
+  addService: (service: Omit<Service, 'id'>) => Promise<void>;
   
   getPatient: (id: string) => Patient | undefined;
   getService: (id: string) => Service | undefined;
 }
 
-// --- Mock Data ---
-
-const INITIAL_PATIENTS: Patient[] = [
-  { id: '1', name: 'أحمد محمد', phone: '0501234567', age: 30, gender: 'male', createdAt: '2023-01-15', notes: 'حساسية بنسلين' },
-  { id: '2', name: 'سارة علي', phone: '0559876543', age: 25, gender: 'female', createdAt: '2023-02-20' },
-  { id: '3', name: 'خالد عمر', phone: '0541112223', age: 45, gender: 'male', createdAt: '2023-03-10', notes: 'سكر' },
-  { id: '4', name: 'منى يوسف', phone: '0563334445', age: 28, gender: 'female', createdAt: '2023-04-05' },
-  { id: '5', name: 'ياسر حسن', phone: '0509998887', age: 12, gender: 'male', createdAt: '2023-05-01' },
-];
-
-const INITIAL_SERVICES: Service[] = [
-  { id: '1', name: 'كشفية', defaultPrice: 50 },
-  { id: '2', name: 'حشو عادي', defaultPrice: 150 },
-  { id: '3', name: 'حشو عصب', defaultPrice: 350 },
-  { id: '4', name: 'خلع', defaultPrice: 100 },
-  { id: '5', name: 'خلع جراحي', defaultPrice: 300 },
-  { id: '6', name: 'تبييض أسنان', defaultPrice: 500 },
-  { id: '7', name: 'تنظيف جير', defaultPrice: 200 },
-];
-
-const INITIAL_APPOINTMENTS: Appointment[] = [
-  { id: '1', patientId: '1', doctorName: 'د. سامي', date: format(new Date(), 'yyyy-MM-dd'), period: 'morning', status: 'scheduled' },
-  { id: '2', patientId: '2', doctorName: 'د. سامي', date: format(new Date(), 'yyyy-MM-dd'), period: 'evening', status: 'scheduled' },
-  { id: '3', patientId: '3', doctorName: 'د. نورة', date: format(addDays(new Date(), 1), 'yyyy-MM-dd'), period: 'morning', status: 'scheduled' },
-];
-
-const INITIAL_VISITS: Visit[] = [
-  { 
-    id: '1', 
-    patientId: '1', 
-    date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), 
-    doctorName: 'د. سامي',
-    items: [{ serviceId: '1', price: 50 }, { serviceId: '7', price: 200 }],
-    totalAmount: 250,
-    payments: [{ id: 'p1', date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), amount: 250 }],
-    paidAmount: 250
-  },
-  { 
-    id: '2', 
-    patientId: '4', 
-    date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), 
-    doctorName: 'د. نورة',
-    items: [{ serviceId: '3', price: 350 }],
-    totalAmount: 350,
-    payments: [{ id: 'p2', date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), amount: 100 }],
-    paidAmount: 100,
-    notes: 'باقي المبلغ الاسبوع القادم'
-  }
-];
-
-const INITIAL_EXPENSES: Expense[] = [
-  { id: '1', title: 'فواتير كهرباء', amount: 450, date: format(subDays(new Date(), 10), 'yyyy-MM-dd'), category: 'فواتير', type: 'fixed' },
-  { id: '2', title: 'مواد طبية', amount: 1200, date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), category: 'مشتريات', type: 'operational' },
-  { id: '3', title: 'سحب شخصي', amount: 5000, date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), category: 'سحبيات', type: 'withdrawal' },
-];
-
 // --- Store Implementation ---
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const API_BASE = '/api';
+
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [patients, setPatients] = useState<Patient[]>(INITIAL_PATIENTS);
-  const [services, setServices] = useState<Service[]>(INITIAL_SERVICES);
-  const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
-  const [visits, setVisits] = useState<Visit[]>(INITIAL_VISITS);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addPatient = (patient: Omit<Patient, 'id' | 'createdAt'>) => {
-    const newPatient = { 
-      ...patient, 
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: format(new Date(), 'yyyy-MM-dd')
-    };
-    setPatients(prev => [newPatient, ...prev]);
-  };
+  // Fetch all data on mount
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes] = await Promise.all([
+          fetch(`${API_BASE}/patients`),
+          fetch(`${API_BASE}/services`),
+          fetch(`${API_BASE}/appointments`),
+          fetch(`${API_BASE}/visits`),
+          fetch(`${API_BASE}/expenses`),
+        ]);
 
-  const updatePatient = (id: string, data: Partial<Patient>) => {
-    setPatients(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-  };
-
-  const addAppointment = (appt: Omit<Appointment, 'id'>) => {
-    const newAppt = { ...appt, id: Math.random().toString(36).substr(2, 9) };
-    setAppointments(prev => [...prev, newAppt]);
-  };
-
-  const updateAppointment = (id: string, data: Partial<Appointment>) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
-  };
-
-  const addVisit = (visit: Omit<Visit, 'id'>) => {
-    const newVisit = { ...visit, id: Math.random().toString(36).substr(2, 9) };
-    setVisits(prev => [newVisit, ...prev]);
-  };
-
-  const updateVisit = (id: string, data: Partial<Visit>) => {
-    setVisits(prev => prev.map(v => {
-      if (v.id !== id) return v;
-      const updatedVisit = { ...v, ...data };
-      // Recalculate paidAmount if payments changed
-      if (data.payments) {
-        updatedVisit.paidAmount = data.payments.reduce((sum, p) => sum + p.amount, 0);
+        if (patientsRes.ok) setPatients(await patientsRes.json());
+        if (servicesRes.ok) setServices(await servicesRes.json());
+        if (appointmentsRes.ok) setAppointments(await appointmentsRes.json());
+        if (visitsRes.ok) setVisits(await visitsRes.json());
+        if (expensesRes.ok) setExpenses(await expensesRes.json());
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
       }
-      return updatedVisit;
-    }));
+    };
+
+    fetchAllData();
+  }, []);
+
+  const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+    try {
+      const res = await fetch(`${API_BASE}/patients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: patient.name,
+          phone: patient.phone,
+          age: Number(patient.age),
+          gender: patient.gender,
+          notes: patient.notes,
+        }),
+      });
+      if (res.ok) {
+        const newPatient = await res.json();
+        setPatients(prev => [newPatient, ...prev]);
+      }
+    } catch (error) {
+      console.error('Failed to add patient:', error);
+    }
   };
 
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense = { ...expense, id: Math.random().toString(36).substr(2, 9) };
-    setExpenses(prev => [newExpense, ...prev]);
+  const updatePatient = async (id: string, data: Partial<Patient>) => {
+    try {
+      const res = await fetch(`${API_BASE}/patients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPatients(prev => prev.map(p => p.id === id ? updated : p));
+      }
+    } catch (error) {
+      console.error('Failed to update patient:', error);
+    }
   };
-  
-  const addService = (service: Omit<Service, 'id'>) => {
-    const newService = { ...service, id: Math.random().toString(36).substr(2, 9) };
-    setServices(prev => [...prev, newService]);
+
+  const addAppointment = async (appt: Omit<Appointment, 'id'>) => {
+    try {
+      const res = await fetch(`${API_BASE}/appointments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appt),
+      });
+      if (res.ok) {
+        const newAppt = await res.json();
+        setAppointments(prev => [...prev, newAppt]);
+      }
+    } catch (error) {
+      console.error('Failed to add appointment:', error);
+    }
+  };
+
+  const updateAppointment = async (id: string, data: Partial<Appointment>) => {
+    try {
+      const res = await fetch(`${API_BASE}/appointments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setAppointments(prev => prev.map(a => a.id === id ? updated : a));
+      }
+    } catch (error) {
+      console.error('Failed to update appointment:', error);
+    }
+  };
+
+  const addVisit = async (visit: Omit<Visit, 'id'>) => {
+    try {
+      const res = await fetch(`${API_BASE}/visits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: visit.patientId,
+          date: visit.date,
+          doctorName: visit.doctorName,
+          diagnosis: visit.diagnosis,
+          totalAmount: Number(visit.totalAmount),
+          paidAmount: Number(visit.paidAmount) || 0,
+          notes: visit.notes,
+          items: visit.items,
+        }),
+      });
+      if (res.ok) {
+        const newVisit = await res.json();
+        setVisits(prev => [newVisit, ...prev]);
+      }
+    } catch (error) {
+      console.error('Failed to add visit:', error);
+    }
+  };
+
+  const updateVisit = async (id: string, data: Partial<Visit>) => {
+    try {
+      const res = await fetch(`${API_BASE}/visits/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setVisits(prev => {
+          const newVisits = prev.map(v => v.id === id ? updated : v);
+          if (data.payments) {
+            const paidAmount = data.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+            return newVisits.map(v => v.id === id ? { ...updated, paidAmount } : v);
+          }
+          return newVisits;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update visit:', error);
+    }
+  };
+
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    try {
+      const res = await fetch(`${API_BASE}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: expense.title,
+          amount: Number(expense.amount),
+          date: expense.date,
+          category: expense.category,
+          type: expense.type,
+          notes: expense.notes,
+        }),
+      });
+      if (res.ok) {
+        const newExpense = await res.json();
+        setExpenses(prev => [newExpense, ...prev]);
+      }
+    } catch (error) {
+      console.error('Failed to add expense:', error);
+    }
+  };
+
+  const addService = async (service: Omit<Service, 'id'>) => {
+    try {
+      const res = await fetch(`${API_BASE}/services`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: service.name,
+          defaultPrice: Number(service.defaultPrice),
+        }),
+      });
+      if (res.ok) {
+        const newService = await res.json();
+        setServices(prev => [...prev, newService]);
+      }
+    } catch (error) {
+      console.error('Failed to add service:', error);
+    }
   };
 
   const getPatient = (id: string) => patients.find(p => p.id === id);
@@ -209,7 +294,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      patients, services, appointments, visits, expenses,
+      patients, services, appointments, visits, expenses, loading,
       addPatient, updatePatient, addAppointment, updateAppointment,
       addVisit, updateVisit, addExpense, addService, getPatient, getService
     }}>
