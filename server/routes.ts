@@ -68,6 +68,25 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/services/:id", async (req, res) => {
+    try {
+      const validated = insertServiceSchema.partial().parse(req.body);
+      const service = await storage.updateService(req.params.id, validated);
+      res.json(service);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid service data" });
+    }
+  });
+
+  app.delete("/api/services/:id", async (req, res) => {
+    try {
+      await storage.deleteService(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete service" });
+    }
+  });
+
   // Appointments endpoints
   app.get("/api/appointments", async (req, res) => {
     const appointments = await storage.getAllAppointments();

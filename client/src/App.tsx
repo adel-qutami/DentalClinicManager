@@ -12,6 +12,7 @@ import Patients from "@/pages/patients";
 import Appointments from "@/pages/appointments";
 import Visits from "@/pages/visits";
 import Finance from "@/pages/finance";
+import Services from "@/pages/services";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/patients" component={Patients} />
         <Route path="/appointments" component={Appointments} />
         <Route path="/visits" component={Visits} />
+        <Route path="/services" component={Services} />
         <Route path="/finance" component={Finance} />
         <Route component={NotFound} />
       </Switch>

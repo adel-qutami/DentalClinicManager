@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Services**: Dental procedures with default pricing
 - **Appointments**: Scheduled patient visits with morning/evening periods
 - **Visits**: Completed patient sessions with multiple service items and quantity tracking
-- **Visit Items**: Service line items with price and quantity (newly added)
+- **Visit Items**: Service line items with price and quantity
 - **Payments**: Payment records linked to visits
 - **Expenses**: Clinic operational costs and withdrawals
 
@@ -85,6 +85,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Updates (December 23, 2025)
 
+### Services Management Page
+- Created complete `/services` page with add, edit, and delete functionality
+- Table view of all dental services with default prices
+- Dialog forms for adding and editing services with validation
+- Confirmation dialog for safe deletion
+- Integration with sidebar navigation with Wrench icon
+- Full CRUD operations: Create, Read, Update, Delete
+
+### API Endpoints for Services
+- `GET /api/services` - Fetch all services
+- `GET /api/services/:id` - Get single service
+- `POST /api/services` - Create new service
+- `PATCH /api/services/:id` - Update service details
+- `DELETE /api/services/:id` - Delete service
+
 ### Quantity Field for Services
 - Added `quantity` field to `visitItems` table in PostgreSQL
 - Updated `visitItems` schema with quantity (default: 1, minimum: 1)
@@ -116,6 +131,7 @@ Preferred communication style: Simple, everyday language.
 ## Testing & Verification
 
 API logs confirm full system integration:
+- Services: Full CRUD functionality working (add, edit, delete)
 - Services loading: 7 dental services from database
 - Patients loading: Multiple patient records with proper filtering
 - Visits with items: Quantity field working correctly (quantity:1 showing in API responses)
@@ -129,6 +145,15 @@ Ready for production deployment. System includes:
 - ✓ Type-safe API with Zod validation
 - ✓ Complete financial tracking with payments
 - ✓ Quantity support for service items
+- ✓ Services management (add/edit/delete)
 - ✓ Pagination for data-heavy pages
 - ✓ Arabic RTL interface
 - ✓ Real-time form validation
+
+## Pages Available
+- **الرئيسية** (Dashboard) - System overview
+- **المرضى** (Patients) - Patient management with pagination
+- **المواعيد** (Appointments) - Appointment scheduling
+- **الزيارات** (Visits) - Visit records with service items and quantity
+- **الخدمات** (Services) - Service management (add/edit/delete)
+- **المالية والتقارير** (Finance & Reports) - Financial tracking

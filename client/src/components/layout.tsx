@@ -6,7 +6,8 @@ import {
   Stethoscope, 
   Wallet, 
   Menu,
-  X
+  X,
+  Wrench
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/patients", label: "المرضى", icon: Users },
     { href: "/appointments", label: "المواعيد", icon: Calendar },
     { href: "/visits", label: "الزيارات", icon: Stethoscope },
+    { href: "/services", label: "الخدمات", icon: Wrench },
     { href: "/finance", label: "المالية والتقارير", icon: Wallet },
   ];
 

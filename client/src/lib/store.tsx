@@ -82,6 +82,8 @@ interface StoreContextType {
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   
   addService: (service: Omit<Service, 'id'>) => Promise<void>;
+  updateService: (id: string, service: Partial<Omit<Service, 'id'>>) => Promise<void>;
+  deleteService: (id: string) => Promise<void>;
   
   getPatient: (id: string) => Patient | undefined;
   getService: (id: string) => Service | undefined;
@@ -282,6 +284,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateService = async (id: string, data: Partial<Omit<Service, 'id'>>) => {
+    try {
+      const res = await fetch(`${API_BASE}/services/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          defaultPrice: data.defaultPrice ? Number(data.defaultPrice) : undefined,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setServices(prev => prev.map(s => s.id === id ? updated : s));
+      }
+    } catch (error) {
+      console.error('Failed to update service:', error);
+    }
+  };
+
+  const deleteService = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/services/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        setServices(prev => prev.filter(s => s.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete service:', error);
+    }
+  };
+
   const getPatient = (id: string) => patients.find(p => p.id === id);
   const getService = (id: string) => services.find(s => s.id === id);
 
@@ -289,7 +324,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider value={{
       patients, services, appointments, visits, expenses, loading,
       addPatient, updatePatient, addAppointment, updateAppointment,
-      addVisit, updateVisit, addExpense, addService, getPatient, getService
+      addVisit, updateVisit, addExpense, addService, updateService, deleteService, getPatient, getService
     }}>
       {children}
     </StoreContext.Provider>
