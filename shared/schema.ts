@@ -64,6 +64,8 @@ export const services = pgTable("services", {
 export const insertServiceSchema = createInsertSchema(services).pick({
   name: true,
   defaultPrice: true,
+}).extend({
+  defaultPrice: z.coerce.number(),
 });
 
 export type InsertService = z.infer<typeof insertServiceSchema>;
