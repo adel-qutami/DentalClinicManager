@@ -130,6 +130,7 @@ export const visitItems = pgTable("visit_items", {
   visitId: varchar("visit_id").notNull().references(() => visits.id),
   serviceId: varchar("service_id").notNull().references(() => services.id),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  quantity: integer("quantity").notNull().default(1),
 });
 
 export const insertVisitItemSchema = createInsertSchema(visitItems)
@@ -137,9 +138,11 @@ export const insertVisitItemSchema = createInsertSchema(visitItems)
     visitId: true,
     serviceId: true,
     price: true,
+    quantity: true,
   })
   .extend({
     price: z.coerce.number(),
+    quantity: z.coerce.number().int().min(1),
   });
 
 export type InsertVisitItem = z.infer<typeof insertVisitItemSchema>;

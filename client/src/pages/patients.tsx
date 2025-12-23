@@ -34,10 +34,13 @@ const patientSchema = z.object({
   notes: z.string().optional(),
 });
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Patients() {
   const { patients, addPatient } = useStore();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof patientSchema>>({
@@ -51,8 +54,14 @@ export default function Patients() {
     },
   });
 
-  const filteredPatients = patients.filter((p) =>
+  const filteredPatients = (patients || []).filter((p) =>
     p.name.includes(search) || p.phone.includes(search)
+  );
+
+  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+  const paginatedPatients = filteredPatients.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
   function onSubmit(values: z.infer<typeof patientSchema>) {

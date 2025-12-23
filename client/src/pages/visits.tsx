@@ -32,7 +32,8 @@ const visitSchema = z.object({
   date: z.string().min(1, "التاريخ مطلوب"),
   items: z.array(z.object({
     serviceId: z.string().min(1, "الخدمة مطلوبة"),
-    price: z.coerce.number().min(0, "السعر مطلوب")
+    price: z.coerce.number().min(0, "السعر مطلوب"),
+    quantity: z.coerce.number().int().min(1, "الكمية يجب أن تكون 1 على الأقل")
   })).min(1, "يجب إضافة خدمة واحدة على الأقل"),
   paidAmount: z.coerce.number().min(0),
   notes: z.string().optional(),
@@ -55,7 +56,7 @@ export default function Visits() {
       patientId: "",
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
-      items: [{ serviceId: "", price: 0 }],
+      items: [{ serviceId: "", price: 0, quantity: 1 }],
       paidAmount: 0,
       notes: "",
     },
@@ -68,7 +69,7 @@ export default function Visits() {
 
   // Calculate total dynamically
   const watchItems = form.watch("items");
-  const totalAmount = watchItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  const totalAmount = watchItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
 
   function onSubmit(values: z.infer<typeof visitSchema>) {
     addVisit({
@@ -81,7 +82,7 @@ export default function Visits() {
        patientId: "",
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
-      items: [{ serviceId: "", price: 0 }],
+      items: [{ serviceId: "", price: 0, quantity: 1 }],
       paidAmount: 0,
       notes: "",
     });
@@ -250,7 +251,7 @@ export default function Visits() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {services.map(s => (
+                                {(services || []).map(s => (
                                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -262,13 +263,30 @@ export default function Visits() {
                         control={form.control}
                         name={`items.${index}.price`}
                         render={({ field }) => (
-                          <FormItem className="w-24">
+                          <FormItem className="w-20">
                             <FormControl>
                               <Input 
                                 type="number" 
                                 placeholder="السعر" 
                                 {...field} 
                                 onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="w-16">
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                placeholder="الكمية" 
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                               />
                             </FormControl>
                           </FormItem>
