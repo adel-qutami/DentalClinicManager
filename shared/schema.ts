@@ -72,7 +72,7 @@ export type Service = typeof services.$inferSelect;
 // Appointments table
 export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  patientId: varchar("patient_id").notNull(),
+  patientId: varchar("patient_id").notNull().references(() => patients.id),
   doctorName: text("doctor_name").notNull(),
   date: date("date").notNull(),
   period: text("period").notNull(), // 'morning' | 'evening'
@@ -102,7 +102,7 @@ export type Appointment = typeof appointments.$inferSelect;
 // Payments table
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  visitId: varchar("visit_id").notNull(),
+  visitId: varchar("visit_id").notNull().references(() => visits.id),
   date: date("date").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   note: text("note"),
@@ -127,8 +127,8 @@ export type Payment = typeof payments.$inferSelect;
 // Visit items (line items in a visit)
 export const visitItems = pgTable("visit_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  visitId: varchar("visit_id").notNull(),
-  serviceId: varchar("service_id").notNull(),
+  visitId: varchar("visit_id").notNull().references(() => visits.id),
+  serviceId: varchar("service_id").notNull().references(() => services.id),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 });
 
@@ -148,7 +148,7 @@ export type VisitItem = typeof visitItems.$inferSelect;
 // Visits table
 export const visits = pgTable("visits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  patientId: varchar("patient_id").notNull(),
+  patientId: varchar("patient_id").notNull().references(() => patients.id),
   date: date("date").notNull(),
   doctorName: text("doctor_name").notNull(),
   diagnosis: text("diagnosis"),
