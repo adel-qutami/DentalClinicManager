@@ -12,17 +12,18 @@ import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
 
 export default function Dashboard() {
-  const { patients, appointments, visits, expenses } = useStore();
+  const { patients, appointments, visits, expenses, can, user } = useStore();
+  const canViewFinance = can("finance_view");
 
   // Calculate Stats
   const todayAppointments = appointments.filter(a => isToday(new Date(a.date)));
   const todayVisits = visits.filter(v => isToday(new Date(v.date)));
   
-  const totalIncome = visits.reduce((sum, v) => sum + v.paidAmount, 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalIncome = visits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const netProfit = totalIncome - totalExpenses;
   
-  const todayIncome = todayVisits.reduce((sum, v) => sum + v.paidAmount, 0);
+  const todayIncome = todayVisits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
 
   const stats = [
     {
@@ -41,22 +42,33 @@ export default function Dashboard() {
       color: "text-emerald-600",
       bg: "bg-emerald-100"
     },
-    {
-      title: "دخل اليوم",
-      value: todayIncome.toLocaleString() + " ر.س",
-      desc: "من الزيارات",
-      icon: Activity,
-      color: "text-violet-600",
-      bg: "bg-violet-100"
-    },
-    {
-      title: "صافي الأرباح",
-      value: netProfit.toLocaleString() + " ر.س",
-      desc: "الدخل - المصروفات",
-      icon: Wallet,
-      color: "text-amber-600",
-      bg: "bg-amber-100"
-    }
+    ...(canViewFinance ? [
+      {
+        title: "دخل اليوم",
+        value: todayIncome.toLocaleString() + " ر.س",
+        desc: "من الزيارات",
+        icon: Activity,
+        color: "text-violet-600",
+        bg: "bg-violet-100"
+      },
+      {
+        title: "صافي الأرباح",
+        value: netProfit.toLocaleString() + " ر.س",
+        desc: "الدخل - المصروفات",
+        icon: Wallet,
+        color: "text-amber-600",
+        bg: "bg-amber-100"
+      }
+    ] : [
+      {
+        title: "زيارات اليوم",
+        value: todayVisits.length,
+        desc: "زيارة مسجلة",
+        icon: Activity,
+        color: "text-violet-600",
+        bg: "bg-violet-100"
+      }
+    ]),
   ];
 
   return (
@@ -88,9 +100,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* Recent Appointments */}
-        <Card className="col-span-4 shadow-sm border-none">
+      <div className={`grid gap-4 md:grid-cols-2 ${canViewFinance ? 'lg:grid-cols-7' : ''}`}>
+        <Card className={`${canViewFinance ? 'col-span-4' : 'col-span-full'} shadow-sm border-none`}>
           <CardHeader>
             <CardTitle>مواعيد اليوم</CardTitle>
           </CardHeader>
@@ -129,42 +140,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Financial Overview Mini */}
-        <Card className="col-span-3 shadow-sm border-none bg-primary text-primary-foreground">
-          <CardHeader>
-            <CardTitle className="text-white">الملخص المالي</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-white/70">إجمالي الدخل</p>
-                <p className="text-2xl font-bold">{totalIncome.toLocaleString()} ر.س</p>
+        {canViewFinance && (
+          <Card className="col-span-3 shadow-sm border-none bg-primary text-primary-foreground">
+            <CardHeader>
+              <CardTitle className="text-white">الملخص المالي</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-white/70">إجمالي الدخل</p>
+                  <p className="text-2xl font-bold">{totalIncome.toLocaleString()} ر.س</p>
+                </div>
+                <div className="p-3 rounded-full bg-white/10">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
               </div>
-              <div className="p-3 rounded-full bg-white/10">
-                <TrendingUp className="w-6 h-6 text-white" />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-white/70">المصروفات</p>
+                  <p className="text-2xl font-bold">{totalExpenses.toLocaleString()} ر.س</p>
+                </div>
+                <div className="p-3 rounded-full bg-white/10">
+                  <TrendingDown className="w-6 h-6 text-white" />
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-white/70">المصروفات</p>
-                <p className="text-2xl font-bold">{totalExpenses.toLocaleString()} ر.س</p>
-              </div>
-              <div className="p-3 rounded-full bg-white/10">
-                <TrendingDown className="w-6 h-6 text-white" />
-              </div>
-            </div>
 
-            <div className="pt-4 border-t border-white/10 mt-4">
-               <div className="flex items-center justify-between">
-                  <span className="font-medium">الزيارات المتبقي تحصيلها</span>
-                  <span className="font-bold bg-white/20 px-2 py-1 rounded text-sm">
-                    {visits.reduce((acc, v) => acc + (v.totalAmount - v.paidAmount), 0).toLocaleString()} ر.س
-                  </span>
-               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="pt-4 border-t border-white/10 mt-4">
+                <div className="flex items-center justify-between">
+                    <span className="font-medium">الزيارات المتبقي تحصيلها</span>
+                    <span className="font-bold bg-white/20 px-2 py-1 rounded text-sm">
+                      {visits.reduce((acc, v) => acc + (Number(v.totalAmount) - Number(v.paidAmount)), 0).toLocaleString()} ر.س
+                    </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -18,7 +18,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Edit, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash2, AlertCircle, CircleDot } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,10 +28,13 @@ import { useToast } from "@/hooks/use-toast";
 const serviceSchema = z.object({
   name: z.string().min(2, "اسم الخدمة مطلوب"),
   defaultPrice: z.coerce.number().min(0, "السعر يجب أن يكون موجباً"),
+  requiresTeethSelection: z.boolean().default(false),
 });
 
 export default function Services() {
-  const { services, addService, updateService, deleteService } = useStore();
+  const { services, addService, updateService, deleteService, can } = useStore();
+  const canManage = can("services_manage");
+  const canEditPrice = can("services_price_edit");
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -41,6 +45,7 @@ export default function Services() {
     defaultValues: {
       name: "",
       defaultPrice: 0,
+      requiresTeethSelection: false,
     },
   });
 
@@ -68,6 +73,7 @@ export default function Services() {
     form.reset({
       name: service.name,
       defaultPrice: Number(service.defaultPrice),
+      requiresTeethSelection: service.requiresTeethSelection ?? false,
     });
     setIsOpen(true);
   }
@@ -94,7 +100,7 @@ export default function Services() {
           <h2 className="text-3xl font-bold tracking-tight">الخدمات الطبية</h2>
           <p className="text-muted-foreground mt-2">إدارة الخدمات المقدمة بالعيادة وأسعارها الافتراضية.</p>
         </div>
-        <Dialog open={isOpen && !deleteId} onOpenChange={(open) => {
+        {canManage && <Dialog open={isOpen && !deleteId} onOpenChange={(open) => {
           setIsOpen(open);
           if (!open) {
             setEditingId(null);
@@ -102,7 +108,7 @@ export default function Services() {
           }
         }}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" data-testid="button-add-service">
               <Plus className="w-4 h-4" />
               خدمة جديدة
             </Button>
@@ -139,6 +145,25 @@ export default function Services() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="requiresTeethSelection"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-2 rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm">تتطلب تحديد أسنان</FormLabel>
+                        <p className="text-xs text-muted-foreground">عند تفعيلها سيظهر مخطط الأسنان عند إضافة هذه الخدمة للزيارة</p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-requires-teeth"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <div className="flex gap-3 pt-4">
                   <Button type="submit" data-testid="button-save-service">{editingId ? "تحديث" : "إضافة"}</Button>
                   <Button 
@@ -157,7 +182,7 @@ export default function Services() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+        </Dialog>}
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -199,7 +224,8 @@ export default function Services() {
             <TableRow>
               <TableHead>الخدمة</TableHead>
               <TableHead>السعر الافتراضي</TableHead>
-              <TableHead className="text-left">الإجراءات</TableHead>
+              <TableHead>تحديد أسنان</TableHead>
+              {canManage && <TableHead className="text-left">الإجراءات</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -207,27 +233,39 @@ export default function Services() {
               <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
                 <TableCell className="font-medium" data-testid={`text-service-name-${service.id}`}>{service.name}</TableCell>
                 <TableCell data-testid={`text-service-price-${service.id}`}>{Number(service.defaultPrice).toFixed(2)} ر.س</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(service)}
-                      data-testid={`button-edit-service-${service.id}`}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => handleDelete(service)}
-                      data-testid={`button-delete-service-${service.id}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <TableCell data-testid={`text-service-teeth-${service.id}`}>
+                  {service.requiresTeethSelection ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+                      <CircleDot className="w-3 h-3" />
+                      مطلوب
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </TableCell>
+                {canManage && (
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(service)}
+                        data-testid={`button-edit-service-${service.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => handleDelete(service)}
+                        data-testid={`button-delete-service-${service.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

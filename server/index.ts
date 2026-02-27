@@ -1,7 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { startReminderScheduler } from "./scheduler";
+
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +29,19 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "dental-clinic-secret-key-2024",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+  }),
+);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -93,6 +114,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      startReminderScheduler();
     },
   );
 })();

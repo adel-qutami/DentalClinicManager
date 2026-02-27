@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,6 +34,15 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, getMonth, getYear, isSameDay, isSameMonth, isSameYear, startOfMonth, endOfMonth, eachDayOfInterval, differenceInYears } from "date-fns";
 import { ar } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const expenseSchema = z.object({
   title: z.string().min(2, "الوصف مطلوب"),
@@ -50,11 +59,12 @@ export default function Finance() {
   const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
   const { toast } = useToast();
 
-  // Report State
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
+  const [filterDoctor, setFilterDoctor] = useState<string>('all');
+  const [filterService, setFilterService] = useState<string>('all');
 
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
@@ -128,7 +138,13 @@ export default function Finance() {
       return false;
     };
 
-    const filteredVisits = visits.filter(v => filterFn(v.date));
+    let filteredVisits = visits.filter(v => filterFn(v.date));
+    if (filterDoctor !== 'all') {
+      filteredVisits = filteredVisits.filter(v => v.doctorName === filterDoctor);
+    }
+    if (filterService !== 'all') {
+      filteredVisits = filteredVisits.filter(v => v.items.some((item: any) => item.serviceId === filterService));
+    }
     const filteredExpenses = expenses.filter(e => filterFn(e.date));
     const filteredAppointments = appointments.filter(a => filterFn(a.date));
 
@@ -137,7 +153,7 @@ export default function Finance() {
       expenses: filteredExpenses,
       appointments: filteredAppointments
     };
-  }, [reportType, selectedDate, selectedMonth, selectedYear, visits, expenses, appointments]);
+  }, [reportType, selectedDate, selectedMonth, selectedYear, visits, expenses, appointments, filterDoctor, filterService]);
 
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
@@ -275,6 +291,131 @@ export default function Finance() {
   const onlyExpenses = expenses.filter(e => e.type !== 'withdrawal');
   const onlyWithdrawals = expenses.filter(e => e.type === 'withdrawal');
 
+  const uniqueDoctors = useMemo(() => {
+    const docs = new Set(visits.map(v => v.doctorName));
+    return Array.from(docs);
+  }, [visits]);
+
+  const getReportPeriodLabel = () => {
+    if (reportType === 'daily') return selectedDate;
+    if (reportType === 'monthly') return selectedMonth;
+    return selectedYear;
+  };
+
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    const summaryData = [
+      ['التقرير المالي - ' + getReportPeriodLabel()],
+      [],
+      ['البند', 'المبلغ (ر.س)'],
+      ['إجمالي الدخل', stats.income],
+      ['المصروفات التشغيلية', stats.operationalExpenses],
+      ['المصروفات الثابتة', stats.fixedExpenses],
+      ['إجمالي المصروفات', stats.totalExpenses],
+      ['صافي الأرباح', stats.netProfit],
+      ['السحبيات الشخصية', stats.withdrawals],
+      ['المتبقي', stats.netProfit - stats.withdrawals],
+      [],
+      ['عدد الزيارات', stats.visitsCount],
+    ];
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+    summaryWs['!cols'] = [{ wch: 30 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
+
+    const visitsSheetData = [
+      ['التاريخ', 'الطبيب', 'المبلغ الإجمالي', 'المبلغ المدفوع', 'التشخيص', 'ملاحظات'],
+      ...filteredData.visits.map(v => [
+        v.date,
+        v.doctorName,
+        Number(v.totalAmount),
+        Number(v.paidAmount),
+        v.diagnosis || '',
+        v.notes || '',
+      ]),
+    ];
+    const visitsWs = XLSX.utils.aoa_to_sheet(visitsSheetData);
+    visitsWs['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, visitsWs, 'الزيارات');
+
+    const expensesSheetData = [
+      ['التاريخ', 'النوع', 'البند', 'التصنيف', 'المبلغ', 'ملاحظات'],
+      ...filteredData.expenses.map(e => [
+        e.date,
+        e.type === 'fixed' ? 'ثابت' : e.type === 'withdrawal' ? 'سحب' : 'تشغيلي',
+        e.title,
+        e.category,
+        Number(e.amount),
+        e.notes || '',
+      ]),
+    ];
+    const expensesWs = XLSX.utils.aoa_to_sheet(expensesSheetData);
+    expensesWs['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, expensesWs, 'المصروفات');
+
+    XLSX.writeFile(wb, `تقرير_مالي_${getReportPeriodLabel()}.xlsx`);
+    toast({ title: 'تم التصدير', description: 'تم تصدير التقرير كملف Excel بنجاح' });
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(`Financial Report - ${getReportPeriodLabel()}`, 14, 20);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Income: ${stats.income.toLocaleString()} SAR`, 14, 32);
+    doc.text(`Total Expenses: ${stats.totalExpenses.toLocaleString()} SAR`, 14, 39);
+    doc.text(`Net Profit: ${stats.netProfit.toLocaleString()} SAR`, 14, 46);
+    doc.text(`Withdrawals: ${stats.withdrawals.toLocaleString()} SAR`, 14, 53);
+    doc.text(`Remaining: ${(stats.netProfit - stats.withdrawals).toLocaleString()} SAR`, 14, 60);
+    doc.text(`Number of Visits: ${stats.visitsCount}`, 14, 67);
+
+    const visitsTableData = filteredData.visits.map(v => [
+      v.date,
+      v.doctorName,
+      Number(v.totalAmount).toLocaleString(),
+      Number(v.paidAmount).toLocaleString(),
+      v.diagnosis || '-',
+    ]);
+
+    if (visitsTableData.length > 0) {
+      (doc as any).autoTable({
+        startY: 75,
+        head: [['Date', 'Doctor', 'Total', 'Paid', 'Diagnosis']],
+        body: visitsTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] },
+        styles: { fontSize: 9, cellPadding: 3 },
+      });
+    }
+
+    const expensesTableData = filteredData.expenses.map(e => [
+      e.date,
+      e.type === 'fixed' ? 'Fixed' : e.type === 'withdrawal' ? 'Withdrawal' : 'Operational',
+      e.title,
+      e.category,
+      Number(e.amount).toLocaleString(),
+    ]);
+
+    if (expensesTableData.length > 0) {
+      const finalY = visitsTableData.length > 0 ? (doc as any).lastAutoTable.finalY + 15 : 75;
+      (doc as any).autoTable({
+        startY: finalY,
+        head: [['Date', 'Type', 'Item', 'Category', 'Amount']],
+        body: expensesTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [192, 57, 43] },
+        styles: { fontSize: 9, cellPadding: 3 },
+      });
+    }
+
+    doc.save(`Financial_Report_${getReportPeriodLabel()}.pdf`);
+    toast({ title: 'تم التصدير', description: 'تم تصدير التقرير كملف PDF بنجاح' });
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -355,10 +496,50 @@ export default function Finance() {
                 </div>
               </div>
               
-              <Button variant="outline" className="gap-2 hidden md:flex">
-                <Download className="w-4 h-4" />
-                تصدير التقرير
-              </Button>
+              <div className="flex flex-wrap gap-2 items-center">
+                <Select value={filterDoctor} onValueChange={setFilterDoctor}>
+                  <SelectTrigger className="w-40 bg-white dark:bg-background" data-testid="select-filter-doctor">
+                    <SelectValue placeholder="الطبيب" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الأطباء</SelectItem>
+                    {uniqueDoctors.map(doc => (
+                      <SelectItem key={doc} value={doc}>{doc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterService} onValueChange={setFilterService}>
+                  <SelectTrigger className="w-40 bg-white dark:bg-background" data-testid="select-filter-service">
+                    <SelectValue placeholder="الخدمة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الخدمات</SelectItem>
+                    {services.map(svc => (
+                      <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="gap-2" data-testid="button-export-report">
+                      <Download className="w-4 h-4" />
+                      تصدير التقرير
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={exportToExcel} data-testid="button-export-excel">
+                      <FileSpreadsheet className="w-4 h-4 ml-2" />
+                      تصدير Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToPDF} data-testid="button-export-pdf">
+                      <FileText className="w-4 h-4 ml-2" />
+                      تصدير PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </Card>
 

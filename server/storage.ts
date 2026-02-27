@@ -8,6 +8,8 @@ import {
   visitItems,
   payments,
   expenses,
+  auditLogs,
+  reminderLogs,
   type User,
   type InsertUser,
   type Patient,
@@ -24,61 +26,72 @@ import {
   type InsertPayment,
   type Expense,
   type InsertExpense,
+  type AuditLog,
+  type InsertAuditLog,
+  type ReminderLog,
+  type InsertReminderLog,
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: string, data: Partial<InsertUser>): Promise<User>;
 
-  // Patients
   getPatient(id: string): Promise<Patient | undefined>;
   getAllPatients(): Promise<Patient[]>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient>;
 
-  // Services
   getService(id: string): Promise<Service | undefined>;
   getAllServices(): Promise<Service[]>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: string, service: Partial<InsertService>): Promise<Service>;
   deleteService(id: string): Promise<void>;
 
-  // Appointments
   getAppointment(id: string): Promise<Appointment | undefined>;
   getAllAppointments(): Promise<Appointment[]>;
+  getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
-  updateAppointment(
-    id: string,
-    appointment: Partial<InsertAppointment>
-  ): Promise<Appointment>;
+  updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment>;
 
-  // Visits with items
   getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined>;
   getAllVisits(): Promise<(Visit & { items: VisitItem[] })[]>;
-  createVisit(
-    visit: InsertVisit,
-    items: InsertVisitItem[]
-  ): Promise<Visit & { items: VisitItem[] }>;
-  updateVisit(
-    id: string,
-    visit: Partial<InsertVisit>
-  ): Promise<Visit & { items: VisitItem[] }>;
+  createVisit(visit: InsertVisit, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }>;
+  updateVisit(id: string, visit: Partial<InsertVisit>): Promise<Visit & { items: VisitItem[] }>;
+  updateVisitWithItems(id: string, visit: Partial<InsertVisit>, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }>;
+  deleteVisit(id: string): Promise<void>;
 
-  // Payments
   getPaymentsForVisit(visitId: string): Promise<Payment[]>;
+  getAllPayments(): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
 
-  // Expenses
   getAllExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
+
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
+
+  createReminderLog(log: InsertReminderLog): Promise<ReminderLog>;
+  getReminderLogs(): Promise<ReminderLog[]>;
+  updateReminderLog(id: string, data: Partial<InsertReminderLog>): Promise<ReminderLog>;
+
+  getFinancialReport(filters: {
+    startDate?: string;
+    endDate?: string;
+    doctorName?: string;
+    serviceType?: string;
+  }): Promise<{
+    visits: (Visit & { items: VisitItem[] })[];
+    expenses: Expense[];
+    payments: Payment[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
@@ -101,7 +114,19 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  // Patients
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async updateUser(id: string, data: Partial<InsertUser>): Promise<User> {
+    const result = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
   async getPatient(id: string): Promise<Patient | undefined> {
     const result = await db.select().from(patients).where(eq(patients.id, id));
     return result[0];
@@ -120,10 +145,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updatePatient(
-    id: string,
-    patient: Partial<InsertPatient>
-  ): Promise<Patient> {
+  async updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient> {
     const result = await db
       .update(patients)
       .set(patient)
@@ -132,7 +154,6 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  // Services
   async getService(id: string): Promise<Service | undefined> {
     const result = await db.select().from(services).where(eq(services.id, id));
     return result[0];
@@ -151,10 +172,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateService(
-    id: string,
-    service: Partial<InsertService>
-  ): Promise<Service> {
+  async updateService(id: string, service: Partial<InsertService>): Promise<Service> {
     const result = await db
       .update(services)
       .set(service)
@@ -167,7 +185,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(services).where(eq(services.id, id));
   }
 
-  // Appointments
   async getAppointment(id: string): Promise<Appointment | undefined> {
     const result = await db
       .select()
@@ -180,6 +197,19 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(appointments).orderBy(desc(appointments.createdAt));
   }
 
+  async getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]> {
+    return await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          gte(appointments.date, startDate),
+          lte(appointments.date, endDate),
+          eq(appointments.status, "scheduled")
+        )
+      );
+  }
+
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
     const id = randomUUID();
     const result = await db
@@ -189,10 +219,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateAppointment(
-    id: string,
-    appointment: Partial<InsertAppointment>
-  ): Promise<Appointment> {
+  async updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment> {
     const result = await db
       .update(appointments)
       .set(appointment)
@@ -201,7 +228,6 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  // Visits
   async getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined> {
     const visit = await db.select().from(visits).where(eq(visits.id, id));
     if (!visit[0]) return undefined;
@@ -230,10 +256,7 @@ export class DatabaseStorage implements IStorage {
     return visitsWithItems;
   }
 
-  async createVisit(
-    visit: InsertVisit,
-    items: InsertVisitItem[]
-  ): Promise<Visit & { items: VisitItem[] }> {
+  async createVisit(visit: InsertVisit, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }> {
     const id = randomUUID();
     const insertedVisit = await db
       .insert(visits)
@@ -254,10 +277,7 @@ export class DatabaseStorage implements IStorage {
     return { ...insertedVisit[0], items: insertedItems };
   }
 
-  async updateVisit(
-    id: string,
-    visit: Partial<InsertVisit>
-  ): Promise<Visit & { items: VisitItem[] }> {
+  async updateVisit(id: string, visit: Partial<InsertVisit>): Promise<Visit & { items: VisitItem[] }> {
     const result = await db
       .update(visits)
       .set(visit as any)
@@ -272,7 +292,44 @@ export class DatabaseStorage implements IStorage {
     return { ...result[0], items };
   }
 
-  // Payments
+  async updateVisitWithItems(
+    id: string,
+    visit: Partial<InsertVisit>,
+    items: InsertVisitItem[]
+  ): Promise<Visit & { items: VisitItem[] }> {
+    await db.delete(visitItems).where(eq(visitItems.visitId, id));
+
+    if (Object.keys(visit).length > 0) {
+      await db
+        .update(visits)
+        .set(visit as any)
+        .where(eq(visits.id, id));
+    }
+
+    const insertedItems = await Promise.all(
+      items.map(async (item) => {
+        const itemId = randomUUID();
+        const result = await db
+          .insert(visitItems)
+          .values({ ...item, visitId: id, id: itemId })
+          .returning();
+        return result[0];
+      })
+    );
+
+    const updatedVisit = await db.select().from(visits).where(eq(visits.id, id));
+    return { ...updatedVisit[0], items: insertedItems };
+  }
+
+  async deleteVisit(id: string): Promise<void> {
+    const existingPayments = await this.getPaymentsForVisit(id);
+    if (existingPayments.length > 0) {
+      throw new Error("Cannot delete visit with existing payments");
+    }
+    await db.delete(visitItems).where(eq(visitItems.visitId, id));
+    await db.delete(visits).where(eq(visits.id, id));
+  }
+
   async getPaymentsForVisit(visitId: string): Promise<Payment[]> {
     return await db
       .select()
@@ -281,16 +338,19 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(payments.createdAt));
   }
 
+  async getAllPayments(): Promise<Payment[]> {
+    return await db.select().from(payments).orderBy(desc(payments.createdAt));
+  }
+
   async createPayment(payment: InsertPayment): Promise<Payment> {
     const id = randomUUID();
     const result = await db
       .insert(payments)
-      .values({ ...payment, id })
+      .values({ ...payment, amount: String(payment.amount), id })
       .returning();
     return result[0];
   }
 
-  // Expenses
   async getAllExpenses(): Promise<Expense[]> {
     return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
   }
@@ -299,9 +359,105 @@ export class DatabaseStorage implements IStorage {
     const id = randomUUID();
     const result = await db
       .insert(expenses)
-      .values({ ...expense, id })
+      .values({ ...expense, amount: String(expense.amount), id })
       .returning();
     return result[0];
+  }
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const id = randomUUID();
+    const result = await db
+      .insert(auditLogs)
+      .values({ ...log, id })
+      .returning();
+    return result[0];
+  }
+
+  async getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+
+    if (entityName && entityId) {
+      return await db.select().from(auditLogs)
+        .where(and(eq(auditLogs.entityName, entityName), eq(auditLogs.entityId, entityId)))
+        .orderBy(desc(auditLogs.createdAt));
+    } else if (entityName) {
+      return await db.select().from(auditLogs)
+        .where(eq(auditLogs.entityName, entityName))
+        .orderBy(desc(auditLogs.createdAt));
+    }
+
+    return await query;
+  }
+
+  async createReminderLog(log: InsertReminderLog): Promise<ReminderLog> {
+    const id = randomUUID();
+    const result = await db
+      .insert(reminderLogs)
+      .values({ ...log, id })
+      .returning();
+    return result[0];
+  }
+
+  async getReminderLogs(): Promise<ReminderLog[]> {
+    return await db.select().from(reminderLogs).orderBy(desc(reminderLogs.createdAt));
+  }
+
+  async updateReminderLog(id: string, data: Partial<InsertReminderLog>): Promise<ReminderLog> {
+    const result = await db
+      .update(reminderLogs)
+      .set(data)
+      .where(eq(reminderLogs.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getFinancialReport(filters: {
+    startDate?: string;
+    endDate?: string;
+    doctorName?: string;
+    serviceType?: string;
+  }): Promise<{
+    visits: (Visit & { items: VisitItem[] })[];
+    expenses: Expense[];
+    payments: Payment[];
+  }> {
+    const conditions: any[] = [];
+    if (filters.startDate) conditions.push(gte(visits.date, filters.startDate));
+    if (filters.endDate) conditions.push(lte(visits.date, filters.endDate));
+    if (filters.doctorName) conditions.push(eq(visits.doctorName, filters.doctorName));
+
+    const filteredVisits = conditions.length > 0
+      ? await db.select().from(visits).where(and(...conditions)).orderBy(desc(visits.createdAt))
+      : await db.select().from(visits).orderBy(desc(visits.createdAt));
+
+    let visitsWithItems = await Promise.all(
+      filteredVisits.map(async (visit) => {
+        const items = await db.select().from(visitItems).where(eq(visitItems.visitId, visit.id));
+        return { ...visit, items };
+      })
+    );
+
+    if (filters.serviceType) {
+      visitsWithItems = visitsWithItems.filter(v =>
+        v.items.some(item => item.serviceId === filters.serviceType)
+      );
+    }
+
+    const expenseConditions: any[] = [];
+    if (filters.startDate) expenseConditions.push(gte(expenses.date, filters.startDate));
+    if (filters.endDate) expenseConditions.push(lte(expenses.date, filters.endDate));
+
+    const filteredExpenses = expenseConditions.length > 0
+      ? await db.select().from(expenses).where(and(...expenseConditions)).orderBy(desc(expenses.createdAt))
+      : await db.select().from(expenses).orderBy(desc(expenses.createdAt));
+
+    const allPayments = await db.select().from(payments).orderBy(desc(payments.createdAt));
+
+    return {
+      visits: visitsWithItems,
+      expenses: filteredExpenses,
+      payments: allPayments,
+    };
   }
 }
 

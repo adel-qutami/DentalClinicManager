@@ -13,174 +13,162 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 - **Framework**: React with TypeScript using Vite as the build tool
 - **Routing**: Wouter for client-side navigation
-- **State Management**: React Query for server state, custom store context for local state
+- **State Management**: Custom store context with auth integration
 - **UI Components**: shadcn/ui component library with Radix UI primitives
 - **Styling**: Tailwind CSS v4 with custom theme variables and RTL support
 - **Forms**: React Hook Form with Zod validation
 - **Charts**: Recharts for financial visualizations
-- **Pagination**: Custom pagination component with 10 items per page default
+- **Export**: xlsx for Excel, jspdf + jspdf-autotable for PDF
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: express-session with role-based access control
 - **API Design**: RESTful endpoints under `/api` prefix
+- **Scheduler**: Daily appointment reminder job
 - **Build Process**: esbuild bundles server code, Vite bundles client code
 
 ### Data Storage
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Schema Location**: `shared/schema.ts` contains all table definitions
+- **Permissions**: `shared/permissions.ts` defines RBAC permission map
 - **Migrations**: Managed via `drizzle-kit push` command
 - **Connection**: Uses `DATABASE_URL` environment variable
-- **Real Database**: All data persisted in PostgreSQL - NO mock or temporary data
 
 ### Key Data Models
-- **Users**: Authentication (username/password)
+- **Users**: Authentication with role (receptionist/dentist/manager)
 - **Patients**: Name, phone, age, gender, notes
-- **Services**: Dental procedures with default pricing
+- **Services**: Dental procedures with default pricing and teeth selection flag
 - **Appointments**: Scheduled patient visits with morning/evening periods
-- **Visits**: Completed patient sessions with multiple service items and quantity tracking
-- **Visit Items**: Service line items with price and quantity
+- **Visits**: Completed patient sessions with multiple service items, quantity, and tooth mapping
+- **Visit Items**: Service line items with price, quantity, tooth numbers, and jaw type
 - **Payments**: Payment records linked to visits
 - **Expenses**: Clinic operational costs and withdrawals
+- **Audit Logs**: Track all create/update/delete operations
+- **Reminder Logs**: Track appointment reminder status
 
 ### Project Structure
 ```
 ├── client/           # React frontend
 │   ├── src/
-│   │   ├── components/  # UI components (including Pagination)
-│   │   ├── pages/       # Route pages with pagination support
-│   │   ├── lib/         # Utilities and store
+│   │   ├── components/  # UI components (Pagination, ToothSelector, etc.)
+│   │   ├── pages/       # Route pages
+│   │   ├── lib/         # Utilities and store with auth
 │   │   └── hooks/       # Custom hooks
 ├── server/           # Express backend
-│   ├── routes.ts     # API endpoints
+│   ├── routes.ts     # API endpoints with RBAC middleware
 │   ├── storage.ts    # Database operations
+│   ├── scheduler.ts  # Appointment reminder scheduler
 │   └── db.ts         # Database connection
 ├── shared/           # Shared code
-│   └── schema.ts     # Drizzle schema definitions
+│   ├── schema.ts     # Drizzle schema definitions
+│   └── permissions.ts # RBAC permission map
 ```
 
-## Complete API Integration
+## Features
 
-### All API Endpoints Connected ✅
+### 1. Tooth & Jaw Mapping
+- Interactive 2D tooth selector component (FDI system)
+- Support for single tooth, multiple teeth, full jaw, full mouth selection
+- Services can be flagged as requiring teeth selection
+- Tooth history tracking per visit item
+- Filter visits by tooth number
 
-**Services Management**
-- `GET /api/services` - Fetch all services
-- `GET /api/services/:id` - Get single service
-- `POST /api/services` - Create new service
-- `PATCH /api/services/:id` - Update service
-- `DELETE /api/services/:id` - Delete service
+### 2. Role-Based Access Control (RBAC)
+- Three roles: Receptionist, Dentist, Manager
+- Session-based authentication
+- Permission-based route protection (frontend + backend)
+- User management page (manager only)
+- Role-specific UI visibility
 
-**Patients Management**
+### 3. Edit Past Visits
+- Full edit mode for existing visits
+- Modify services, quantities, prices, tooth selections
+- Auto-recalculate totals
+- Payment safeguards (cannot delete visit with payments)
+
+### 4. Audit Log
+- Tracks all create/update/delete operations
+- Records old and new values
+- Filterable by entity type
+- Manager-only access
+
+### 5. Appointment Reminders
+- Daily scheduler checks tomorrow's appointments
+- Creates reminder logs (pending status)
+- Manual test trigger endpoint
+- Reminder log table in appointments page
+- Infrastructure ready for SMS/Email/WhatsApp integration
+
+### 6. Reports & Export
+- Excel export (multi-sheet with summary, visits, expenses)
+- PDF export (landscape with financial summary and tables)
+- Filter by date range, doctor, service type
+- Detailed financial reports endpoint
+
+## API Endpoints
+
+### Auth
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Current user info
+- `POST /api/auth/register` - Register new user
+
+### Patients
 - `GET /api/patients` - Fetch all patients
 - `GET /api/patients/:id` - Get single patient
-- `POST /api/patients` - Create new patient
-- `PATCH /api/patients/:id` - Update patient
+- `POST /api/patients` - Create patient (+ audit log)
+- `PATCH /api/patients/:id` - Update patient (+ audit log)
 
-**Appointments**
+### Services
+- `GET /api/services` - Fetch all services (includes requiresTeethSelection)
+- `GET /api/services/:id` - Get single service
+- `POST /api/services` - Create service (+ audit log)
+- `PATCH /api/services/:id` - Update service (+ audit log)
+- `DELETE /api/services/:id` - Delete service (+ audit log)
+
+### Appointments
 - `GET /api/appointments` - Fetch all appointments
-- `GET /api/appointments/:id` - Get single appointment
-- `POST /api/appointments` - Create new appointment
-- `PATCH /api/appointments/:id` - Update appointment status
+- `POST /api/appointments` - Create appointment
+- `PATCH /api/appointments/:id` - Update appointment
 
-**Visits**
-- `GET /api/visits` - Fetch all visits
+### Visits
+- `GET /api/visits` - Fetch all visits with items (includes tooth data)
 - `GET /api/visits/:id` - Get single visit
-- `POST /api/visits` - Create new visit with items
-- `PATCH /api/visits/:id` - Update visit
+- `POST /api/visits` - Create visit with items and tooth data (+ audit log)
+- `PATCH /api/visits/:id` - Update visit, supports items array for full edit (+ audit log)
+- `DELETE /api/visits/:id` - Delete visit (blocked if payments exist)
 
-**Financial**
+### Financial
 - `GET /api/expenses` - Fetch all expenses
-- `POST /api/expenses` - Add new expense or withdrawal
-- `GET /api/payments` - Fetch payment records
-- `POST /api/payments` - Record payment for visit
+- `POST /api/expenses` - Add expense (+ audit log)
+- `GET /api/payments` - Fetch all payments
+- `POST /api/payments` - Record payment
+- `GET /api/reports/financial` - Filtered financial report
 
-### Frontend Integration Status ✅
+### Audit & Reminders
+- `GET /api/audit-logs` - Fetch audit logs (manager only)
+- `GET /api/reminder-logs` - Fetch reminder logs
+- `POST /api/reminders/send-test` - Trigger manual reminder check
 
-All pages fully connected to real PostgreSQL database via store:
-- **Dashboard** - Real-time statistics from database (income, expenses, appointments)
-- **Patients** - All patient operations (add, edit, view) with pagination
-- **Appointments** - Schedule, update status with real database persistence
-- **Visits** - Complete visit records with service items and quantity tracking
-- **Services** - Full CRUD operations (add, edit, delete)
-- **Finance** - Expense tracking and financial reports from real data
+### Users
+- `GET /api/users` - List users (manager only)
+- `POST /api/users` - Create user (manager only)
+- `PATCH /api/users/:id/role` - Update user role (manager only)
 
-### Database Integration Verification ✅
-
-**Real Data Confirmation:**
-- Services: 7 services loaded from PostgreSQL ✓
-- Patients: 6 patient records in database ✓
-- Appointments: 3 scheduled appointments ✓
-- Visits: 2 visit records with complete items ✓
-- Expenses: 3 financial records ✓
-- Quantity Field: Working correctly in visit items (quantity:1 confirmed in API responses)
-
-**No Mock Data:** System uses 100% real PostgreSQL data - no temporary or placeholder data anywhere.
-
-### Store Methods ✅
-
-All frontend operations properly integrated:
-- `addPatient()` - Create new patient in database
-- `updatePatient()` - Update patient information
-- `addAppointment()` - Schedule new appointment
-- `updateAppointment()` - Update appointment status
-- `addVisit()` - Record new visit with service items
-- `updateVisit()` - Update visit details
-- `addService()` - Create new service
-- `updateService()` - Update service information
-- `deleteService()` - Remove service from database
-- `addExpense()` - Record expense or withdrawal
-- `getPatient()` - Retrieve patient by ID
-- `getService()` - Retrieve service by ID
-
-## Testing & Verification
-
-**API Endpoints:** All tested and returning real database data
-```
-✓ GET /api/services - 7 services from PostgreSQL
-✓ GET /api/patients - 6 patients from PostgreSQL
-✓ GET /api/appointments - 3 appointments from PostgreSQL
-✓ GET /api/visits - 2 visits with items from PostgreSQL
-✓ GET /api/expenses - 3 expenses from PostgreSQL
-```
-
-**Form Operations:** All forms submit data to real database
-- Services form: Creates/updates/deletes in database
-- Patient form: Saves to database with validation
-- Appointment form: Books in database
-- Visit form: Records with service items and quantity
-
-**Database Relationships:** All foreign keys functional
-- Appointments → Patients ✓
-- Visits → Patients ✓
-- Visit Items → Visits + Services ✓
-- Payments → Visits ✓
-
-## System Status
-
-**Production Ready:** ✅
-- ✓ Full API-to-database pipeline operational
-- ✓ All endpoints connected to frontend interfaces
-- ✓ Real PostgreSQL database integration enabled
-- ✓ No mock or temporary data - 100% real data
-- ✓ Complete CRUD operations for all entities
-- ✓ Type-safe API with Zod validation
-- ✓ Arabic RTL interface fully functional
-- ✓ Real-time form validation
-- ✓ Pagination for data-heavy pages
-- ✓ Financial tracking and reporting
-
-## Pages Available
-- **الرئيسية** (Dashboard) - System overview with real statistics
-- **المرضى** (Patients) - Patient management with pagination
-- **المواعيد** (Appointments) - Appointment scheduling
-- **الزيارات** (Visits) - Visit records with service items and quantity
-- **الخدمات** (Services) - Service management (add/edit/delete)
-- **المالية والتقارير** (Finance & Reports) - Financial tracking
+## Pages
+- **الرئيسية** (Dashboard) - System overview with role-based stats
+- **المرضى** (Patients) - Patient management
+- **المواعيد** (Appointments) - Appointment scheduling + reminders tab
+- **الزيارات** (Visits) - Visit records with tooth selector, edit mode
+- **الخدمات** (Services) - Service management with teeth selection toggle
+- **المالية والتقارير** (Finance) - Financial tracking with Excel/PDF export
+- **سجل التدقيق** (Audit Log) - Modification history (manager only)
+- **إدارة المستخدمين** (Users) - User/role management (manager only)
+- **تسجيل الدخول** (Login) - Authentication page
 
 ## Build Status
-- ✅ Latest build successful
-- ✅ All dependencies installed
-- ✅ TypeScript compilation passing
-- ✅ No type errors
+- ✅ All 6 features implemented
 - ✅ Server running on port 5000
-- ✅ All API routes active
+- ✅ All API routes active with RBAC
+- ✅ Scheduler running for reminders

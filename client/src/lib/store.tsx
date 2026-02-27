@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { type Role, type Permission, hasPermission, getRoleLabel } from '@shared/permissions';
 
-// --- Types ---
+export type { Role, Permission };
+export { hasPermission, getRoleLabel };
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: Role;
+}
 
 export interface Patient {
   id: string;
@@ -16,6 +24,7 @@ export interface Service {
   id: string;
   name: string;
   defaultPrice: string | number;
+  requiresTeethSelection: boolean;
 }
 
 export interface Appointment {
@@ -31,6 +40,9 @@ export interface Appointment {
 export interface VisitItem {
   serviceId: string;
   price: number;
+  quantity?: number;
+  toothNumbers?: string[] | null;
+  jawType?: string | null;
 }
 
 export interface Payment {
@@ -63,6 +75,13 @@ export interface Expense {
 }
 
 interface StoreContextType {
+  user: AuthUser | null;
+  authLoading: boolean;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  register: (username: string, password: string, role: Role) => Promise<{ success: boolean; error?: string }>;
+  can: (permission: Permission) => boolean;
+
   patients: Patient[];
   services: Service[];
   appointments: Appointment[];
@@ -89,13 +108,13 @@ interface StoreContextType {
   getService: (id: string) => Service | undefined;
 }
 
-// --- Store Implementation ---
-
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const API_BASE = '/api';
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -103,33 +122,112 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all data on mount
   useEffect(() => {
-    const fetchAllData = async () => {
+    const checkAuth = async () => {
       try {
-        setLoading(true);
-        const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes] = await Promise.all([
-          fetch(`${API_BASE}/patients`),
-          fetch(`${API_BASE}/services`),
-          fetch(`${API_BASE}/appointments`),
-          fetch(`${API_BASE}/visits`),
-          fetch(`${API_BASE}/expenses`),
-        ]);
-
-        if (patientsRes.ok) setPatients(await patientsRes.json());
-        if (servicesRes.ok) setServices(await servicesRes.json());
-        if (appointmentsRes.ok) setAppointments(await appointmentsRes.json());
-        if (visitsRes.ok) setVisits(await visitsRes.json());
-        if (expensesRes.ok) setExpenses(await expensesRes.json());
+        const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error('Auth check failed:', error);
       } finally {
-        setLoading(false);
+        setAuthLoading(false);
       }
     };
-
-    fetchAllData();
+    checkAuth();
   }, []);
+
+  const fetchAllData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes] = await Promise.all([
+        fetch(`${API_BASE}/patients`),
+        fetch(`${API_BASE}/services`),
+        fetch(`${API_BASE}/appointments`),
+        fetch(`${API_BASE}/visits`),
+        fetch(`${API_BASE}/expenses`),
+      ]);
+
+      if (patientsRes.ok) setPatients(await patientsRes.json());
+      if (servicesRes.ok) setServices(await servicesRes.json());
+      if (appointmentsRes.ok) setAppointments(await appointmentsRes.json());
+      if (visitsRes.ok) setVisits(await visitsRes.json());
+      if (expensesRes.ok) setExpenses(await expensesRes.json());
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchAllData();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading, fetchAllData]);
+
+  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل تسجيل الدخول' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال' };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+    setUser(null);
+    setPatients([]);
+    setServices([]);
+    setAppointments([]);
+    setVisits([]);
+    setExpenses([]);
+  };
+
+  const register = async (username: string, password: string, role: Role): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password, role }),
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل التسجيل' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال' };
+    }
+  };
+
+  const can = (permission: Permission): boolean => {
+    if (!user) return false;
+    return hasPermission(user.role, permission);
+  };
 
   const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     try {
@@ -273,6 +371,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           name: service.name,
           defaultPrice: Number(service.defaultPrice),
+          requiresTeethSelection: service.requiresTeethSelection ?? false,
         }),
       });
       if (res.ok) {
@@ -292,6 +391,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           name: data.name,
           defaultPrice: data.defaultPrice ? Number(data.defaultPrice) : undefined,
+          requiresTeethSelection: data.requiresTeethSelection,
         }),
       });
       if (res.ok) {
@@ -322,6 +422,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
+      user, authLoading, login, logout, register, can,
       patients, services, appointments, visits, expenses, loading,
       addPatient, updatePatient, addAppointment, updateAppointment,
       addVisit, updateVisit, addExpense, addService, updateService, deleteService, getPatient, getService
