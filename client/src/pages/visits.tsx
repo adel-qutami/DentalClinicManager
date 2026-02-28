@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useStore, Visit } from "@/lib/store";
+import { useState, useEffect } from "react";
+import { useStore, Visit, Payment } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Trash2, AlertCircle, Filter, X, Pencil, ChevronDown, ChevronUp, Eye, CreditCard, ArrowRight } from "lucide-react";
+import { Plus, Search, Trash2, AlertCircle, X, Pencil, Eye, CreditCard, ArrowRight } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,15 +32,16 @@ const visitSchema = z.object({
 });
 
 type ViewMode = "list" | "new" | "edit" | "detail" | "payment";
+type PaymentFilter = "all" | "unpaid" | "paid";
 
 export default function Visits() {
-  const { visits, patients, services, loading, addVisit, updateVisit, getService } = useStore();
+  const { visits, patients, services, loading, addVisit, updateVisit, addPayment, getVisitPayments, getService } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
   const [newPaymentDate, setNewPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [toothFilter, setToothFilter] = useState<string>("");
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [visitPayments, setVisitPayments] = useState<Payment[]>([]);
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
 
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -83,9 +84,15 @@ export default function Visits() {
   const editWatchItems = editForm.watch("items");
   const editTotalAmount = editWatchItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
 
+  const loadPayments = async (visitId: string) => {
+    const payments = await getVisitPayments(visitId);
+    setVisitPayments(payments);
+  };
+
   function resetAndGoToList() {
     setViewMode("list");
     setSelectedVisit(null);
+    setVisitPayments([]);
     form.reset({
       patientId: "",
       doctorName: "د. سامي",
@@ -217,24 +224,33 @@ export default function Visits() {
       return;
     }
 
-    const newTotalPaid = Number(selectedVisit.paidAmount) + paymentAmount;
-    if (newTotalPaid > Number(selectedVisit.totalAmount)) {
-      toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز إجمالي الزيارة" });
+    const remaining = Number(selectedVisit.totalAmount) - Number(selectedVisit.paidAmount);
+    if (paymentAmount > remaining) {
+      toast({ variant: "destructive", description: "المبلغ المدفوع يتجاوز المتبقي" });
       return;
     }
 
-    const result = await updateVisit(selectedVisit.id, {
-      paidAmount: newTotalPaid
-    });
+    const result = await addPayment(selectedVisit.id, newPaymentDate, paymentAmount);
     if (result.success) {
       setNewPaymentAmount("");
       setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-      resetAndGoToList();
+      const updatedVisit = visits.find(v => v.id === selectedVisit.id);
+      if (updatedVisit) {
+        setSelectedVisit(updatedVisit);
+      }
+      await loadPayments(selectedVisit.id);
       toast({ title: "تم تسجيل الدفعة بنجاح" });
     } else {
       toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
     }
   };
+
+  useEffect(() => {
+    if (selectedVisit) {
+      const updated = visits.find(v => v.id === selectedVisit.id);
+      if (updated) setSelectedVisit(updated);
+    }
+  }, [visits]);
 
   const getJawTypeLabel = (jawType: string | null | undefined): string => {
     switch (jawType) {
@@ -247,15 +263,6 @@ export default function Visits() {
   };
 
   const [currentPage, setCurrentPage] = useState(1);
-
-  const toggleCardExpand = (id: string) => {
-    setExpandedCards(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   if (loading) {
     return (
@@ -275,11 +282,13 @@ export default function Visits() {
     const patient = (patients || []).find(p => p.id === v.patientId);
     const matchesSearch = !search || (patient?.name.includes(search) || patient?.phone.includes(search) || false);
 
-    if (toothFilter) {
-      const hasMatchingTooth = v.items.some(item =>
-        item.toothNumbers && item.toothNumbers.includes(toothFilter)
-      );
-      return matchesSearch && hasMatchingTooth;
+    if (paymentFilter === "unpaid") {
+      const remaining = Number(v.totalAmount) - Number(v.paidAmount);
+      return matchesSearch && remaining > 0;
+    }
+    if (paymentFilter === "paid") {
+      const remaining = Number(v.totalAmount) - Number(v.paidAmount);
+      return matchesSearch && remaining <= 0;
     }
 
     return matchesSearch;
@@ -841,7 +850,34 @@ export default function Visits() {
                 <span className="text-red-600 font-bold">{remaining} ر.س</span>
               </div>
             )}
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">سجل الدفعات</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {visitPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">لا توجد دفعات مسجلة</p>
+            ) : (
+              <div className="space-y-2">
+                {visitPayments.map((p, idx) => (
+                  <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg text-sm" data-testid={`payment-record-${idx}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
+                        <CreditCard className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <span className="font-medium">{Number(p.amount)} ر.س</span>
+                        {p.note && <span className="text-muted-foreground mr-2">- {p.note}</span>}
+                      </div>
+                    </div>
+                    <span className="text-muted-foreground text-xs">{p.date}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -901,6 +937,27 @@ export default function Visits() {
           </CardContent>
         </Card>
 
+        {visitPayments.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">الدفعات السابقة</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {visitPayments.map((p, idx) => (
+                <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg text-sm" data-testid={`payment-history-${idx}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-green-600" />
+                    </div>
+                    <span className="font-medium">{Number(p.amount)} ر.س</span>
+                  </div>
+                  <span className="text-muted-foreground text-xs">{p.date}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {remaining > 0 && (
           <Card>
             <CardHeader className="pb-4">
@@ -947,6 +1004,9 @@ export default function Visits() {
     );
   }
 
+  const unpaidCount = (visits || []).filter(v => Number(v.totalAmount) - Number(v.paidAmount) > 0).length;
+  const paidCount = (visits || []).filter(v => Number(v.totalAmount) - Number(v.paidAmount) <= 0).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -976,154 +1036,87 @@ export default function Visits() {
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 bg-card p-2 rounded-lg border">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="رقم السن"
-            value={toothFilter}
-            onChange={(e) => { setToothFilter(e.target.value); setCurrentPage(1); }}
-            className="border-none shadow-none focus-visible:ring-0 w-24"
-            data-testid="input-tooth-filter"
-          />
-          {toothFilter && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setToothFilter(""); setCurrentPage(1); }} data-testid="button-clear-tooth-filter">
-              <X className="w-3 h-3" />
-            </Button>
-          )}
-        </div>
       </div>
 
-      {toothFilter && (
-        <div className="text-sm text-muted-foreground" data-testid="text-tooth-filter-info">
-          تصفية حسب السن رقم: <span className="font-medium text-foreground">{toothFilter}</span>
-          {" - "}{filteredVisits.length} زيارة
-        </div>
-      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant={paymentFilter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => { setPaymentFilter("all"); setCurrentPage(1); }}
+          data-testid="filter-all"
+        >
+          الكل ({(visits || []).length})
+        </Button>
+        <Button
+          variant={paymentFilter === "unpaid" ? "default" : "outline"}
+          size="sm"
+          className={paymentFilter !== "unpaid" ? "text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" : "bg-red-600 hover:bg-red-700"}
+          onClick={() => { setPaymentFilter("unpaid"); setCurrentPage(1); }}
+          data-testid="filter-unpaid"
+        >
+          متبقي عليها ({unpaidCount})
+        </Button>
+        <Button
+          variant={paymentFilter === "paid" ? "default" : "outline"}
+          size="sm"
+          className={paymentFilter !== "paid" ? "text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20" : "bg-green-600 hover:bg-green-700"}
+          onClick={() => { setPaymentFilter("paid"); setCurrentPage(1); }}
+          data-testid="filter-paid"
+        >
+          مسددة ({paidCount})
+        </Button>
+      </div>
 
       {filteredVisits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <div className="text-6xl mb-4">🦷</div>
-          <p className="text-lg font-medium">لا توجد زيارات مسجلة</p>
-          <p className="text-sm mt-1">اضغط على "زيارة جديدة" لتسجيل أول زيارة</p>
+          <p className="text-lg font-medium">لا توجد زيارات</p>
+          <p className="text-sm mt-1">
+            {paymentFilter !== "all" ? "لا توجد زيارات تطابق هذا الفلتر" : "اضغط على \"زيارة جديدة\" لتسجيل أول زيارة"}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {paginatedVisits.map((visit) => {
             const patient = patients.find(p => p.id === visit.patientId);
             const remaining = Number(visit.totalAmount) - Number(visit.paidAmount);
-            const allTeeth = visit.items
-              .filter(i => i.toothNumbers && i.toothNumbers.length > 0)
-              .flatMap(i => i.toothNumbers || []);
-            const uniqueTeeth = Array.from(new Set(allTeeth)).sort();
-            const isExpanded = expandedCards.has(visit.id);
 
             return (
-              <Card key={visit.id} className="overflow-hidden" data-testid={`card-visit-${visit.id}`}>
+              <Card key={visit.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" data-testid={`card-visit-${visit.id}`}
+                onClick={() => {
+                  setSelectedVisit(visit);
+                  loadPayments(visit.id);
+                  setViewMode("detail");
+                }}
+              >
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-base">{patient?.name}</span>
+                        <span className="font-bold text-base" data-testid={`text-patient-name-${visit.id}`}>{patient?.name}</span>
                         {remaining > 0 ? (
                           <Badge variant="destructive" className="text-[10px]">{remaining} ر.س متبقي</Badge>
                         ) : (
                           <Badge className="bg-green-600 text-[10px]">مسدد</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span>{visit.date}</span>
                         <span>•</span>
                         <span>{visit.doctorName}</span>
-                        <span>•</span>
-                        <span className="font-medium text-foreground">{Number(visit.totalAmount)} ر.س</span>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
                         {visit.items.map(i => getService(i.serviceId)?.name).filter(Boolean).join(' • ')}
                       </div>
-                      {uniqueTeeth.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {uniqueTeeth.map(t => (
-                            <Badge key={t} variant="secondary" className="text-[10px] px-1.5" data-testid={`badge-tooth-${t}-visit-${visit.id}`}>
-                              {t}
-                            </Badge>
-                          ))}
-                        </div>
+                    </div>
+
+                    <div className="text-left shrink-0">
+                      <div className="font-bold text-lg" data-testid={`text-total-${visit.id}`}>{Number(visit.totalAmount)} ر.س</div>
+                      {remaining > 0 && (
+                        <div className="text-xs text-red-600">متبقي: {remaining} ر.س</div>
                       )}
                     </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => toggleCardExpand(visit.id)}
-                        data-testid={`button-expand-${visit.id}`}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </Button>
-                    </div>
                   </div>
-
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t space-y-3">
-                      <div className="grid grid-cols-3 gap-3 text-sm">
-                        <div className="text-center p-2 bg-muted/50 rounded-lg">
-                          <div className="text-muted-foreground text-xs">الإجمالي</div>
-                          <div className="font-bold">{Number(visit.totalAmount)} ر.س</div>
-                        </div>
-                        <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                          <div className="text-muted-foreground text-xs">المدفوع</div>
-                          <div className="font-bold text-green-600">{Number(visit.paidAmount)} ر.س</div>
-                        </div>
-                        <div className="text-center p-2 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                          <div className="text-muted-foreground text-xs">المتبقي</div>
-                          <div className="font-bold text-red-600">{remaining > 0 ? remaining : 0} ر.س</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-xs flex-1 sm:flex-none"
-                          onClick={() => {
-                            setSelectedVisit(visit);
-                            setViewMode("detail");
-                          }}
-                          data-testid={`button-detail-visit-${visit.id}`}
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          تفاصيل
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-xs flex-1 sm:flex-none"
-                          onClick={() => openEditView(visit)}
-                          data-testid={`button-edit-visit-${visit.id}`}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          تعديل
-                        </Button>
-                        {remaining > 0 && (
-                          <Button
-                            size="sm"
-                            className="gap-1.5 text-xs flex-1 sm:flex-none"
-                            onClick={() => {
-                              setSelectedVisit(visit);
-                              setNewPaymentAmount("");
-                              setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-                              setViewMode("payment");
-                            }}
-                            data-testid={`button-payment-visit-${visit.id}`}
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            سداد
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );

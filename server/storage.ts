@@ -348,6 +348,13 @@ export class DatabaseStorage implements IStorage {
       .insert(payments)
       .values({ ...payment, amount: String(payment.amount), id })
       .returning();
+
+    const visit = await this.getVisit(payment.visitId);
+    if (visit) {
+      const newPaid = Number(visit.paidAmount) + Number(payment.amount);
+      await db.update(visits).set({ paidAmount: String(newPaid) }).where(eq(visits.id, payment.visitId));
+    }
+
     return result[0];
   }
 

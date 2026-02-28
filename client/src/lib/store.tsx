@@ -57,11 +57,9 @@ export interface Visit {
   patientId: string;
   date: string;
   doctorName: string;
-  diagnosis?: string;
   items: VisitItem[];
   totalAmount: string | number;
   paidAmount: string | number;
-  notes?: string;
 }
 
 export interface Expense {
@@ -104,6 +102,8 @@ interface StoreContextType {
   updateService: (id: string, service: Partial<Omit<Service, 'id'>>) => Promise<{ success: boolean; error?: string }>;
   deleteService: (id: string) => Promise<{ success: boolean; error?: string }>;
   
+  addPayment: (visitId: string, date: string, amount: number) => Promise<{ success: boolean; error?: string }>;
+  getVisitPayments: (visitId: string) => Promise<Payment[]>;
   getPatient: (id: string) => Patient | undefined;
   getService: (id: string) => Service | undefined;
 }
@@ -326,10 +326,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           patientId: visit.patientId,
           date: visit.date,
           doctorName: visit.doctorName,
-          diagnosis: visit.diagnosis,
           totalAmount: Number(visit.totalAmount),
           paidAmount: Number(visit.paidAmount) || 0,
-          notes: visit.notes,
           items: visit.items,
         }),
       });
@@ -458,6 +456,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addPayment = async (visitId: string, date: string, amount: number): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ visitId, date, amount }),
+      });
+      if (res.ok) {
+        const visitRes = await fetch(`${API_BASE}/visits`, { credentials: 'include' });
+        if (visitRes.ok) setVisits(await visitRes.json());
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل تسجيل الدفعة' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
+  const getVisitPayments = async (visitId: string): Promise<Payment[]> => {
+    try {
+      const res = await fetch(`${API_BASE}/visits/${visitId}/payments`, { credentials: 'include' });
+      if (res.ok) return await res.json();
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
   const getPatient = (id: string) => patients.find(p => p.id === id);
   const getService = (id: string) => services.find(s => s.id === id);
 
@@ -466,7 +494,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       user, authLoading, login, logout, register, can,
       patients, services, appointments, visits, expenses, loading,
       addPatient, updatePatient, addAppointment, updateAppointment,
-      addVisit, updateVisit, addExpense, addService, updateService, deleteService, getPatient, getService
+      addVisit, updateVisit, addExpense, addService, updateService, deleteService, addPayment, getVisitPayments, getPatient, getService
     }}>
       {children}
     </StoreContext.Provider>
