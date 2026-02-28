@@ -45,6 +45,7 @@ export interface IStorage {
   getAllPatients(): Promise<Patient[]>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient>;
+  deletePatient(id: string): Promise<void>;
 
   getService(id: string): Promise<Service | undefined>;
   getAllServices(): Promise<Service[]>;
@@ -57,6 +58,7 @@ export interface IStorage {
   getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment>;
+  deleteAppointment(id: string): Promise<void>;
 
   getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined>;
   getAllVisits(): Promise<(Visit & { items: VisitItem[] })[]>;
@@ -71,6 +73,8 @@ export interface IStorage {
 
   getAllExpenses(): Promise<Expense[]>;
   createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense>;
+  deleteExpense(id: string): Promise<void>;
 
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
@@ -154,6 +158,18 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async deletePatient(id: string): Promise<void> {
+    const patientVisits = await db.select().from(visits).where(eq(visits.patientId, id));
+    if (patientVisits.length > 0) {
+      throw new Error("لا يمكن حذف مريض لديه زيارات مسجلة");
+    }
+    const patientAppts = await db.select().from(appointments).where(eq(appointments.patientId, id));
+    if (patientAppts.length > 0) {
+      throw new Error("لا يمكن حذف مريض لديه مواعيد مسجلة");
+    }
+    await db.delete(patients).where(eq(patients.id, id));
+  }
+
   async getService(id: string): Promise<Service | undefined> {
     const result = await db.select().from(services).where(eq(services.id, id));
     return result[0];
@@ -226,6 +242,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(appointments.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteAppointment(id: string): Promise<void> {
+    await db.delete(appointments).where(eq(appointments.id, id));
   }
 
   async getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined> {
@@ -369,6 +389,23 @@ export class DatabaseStorage implements IStorage {
       .values({ ...expense, amount: String(expense.amount), id })
       .returning();
     return result[0];
+  }
+
+  async updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense> {
+    const updateData: any = { ...expense };
+    if (expense.amount !== undefined) {
+      updateData.amount = String(expense.amount);
+    }
+    const result = await db
+      .update(expenses)
+      .set(updateData)
+      .where(eq(expenses.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteExpense(id: string): Promise<void> {
+    await db.delete(expenses).where(eq(expenses.id, id));
   }
 
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
