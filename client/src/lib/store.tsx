@@ -89,20 +89,20 @@ interface StoreContextType {
   expenses: Expense[];
   loading: boolean;
   
-  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<void>;
-  updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
+  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
+  updatePatient: (id: string, patient: Partial<Patient>) => Promise<{ success: boolean; error?: string }>;
   
-  addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<void>;
-  updateAppointment: (id: string, appt: Partial<Appointment>) => Promise<void>;
+  addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateAppointment: (id: string, appt: Partial<Appointment>) => Promise<{ success: boolean; error?: string }>;
   
-  addVisit: (visit: Omit<Visit, 'id'>) => Promise<void>;
-  updateVisit: (id: string, visit: Partial<Visit>) => Promise<void>;
+  addVisit: (visit: Omit<Visit, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateVisit: (id: string, visit: Partial<Visit>) => Promise<{ success: boolean; error?: string }>;
   
-  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<{ success: boolean; error?: string }>;
   
-  addService: (service: Omit<Service, 'id'>) => Promise<void>;
-  updateService: (id: string, service: Partial<Omit<Service, 'id'>>) => Promise<void>;
-  deleteService: (id: string) => Promise<void>;
+  addService: (service: Omit<Service, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateService: (id: string, service: Partial<Omit<Service, 'id'>>) => Promise<{ success: boolean; error?: string }>;
+  deleteService: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   getPatient: (id: string) => Patient | undefined;
   getService: (id: string) => Service | undefined;
@@ -230,7 +230,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return hasPermission(user.role, permission);
   };
 
-  const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+  const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/patients`, {
         method: 'POST',
@@ -247,13 +247,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newPatient = await res.json();
         setPatients(prev => [newPatient, ...prev]);
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل إضافة المريض' };
     } catch (error) {
-      console.error('Failed to add patient:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const updatePatient = async (id: string, data: Partial<Patient>) => {
+  const updatePatient = async (id: string, data: Partial<Patient>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/patients/${id}`, {
         method: 'PATCH',
@@ -264,13 +267,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const updated = await res.json();
         setPatients(prev => prev.map(p => p.id === id ? updated : p));
+        return { success: true };
       }
+      const errData = await res.json();
+      return { success: false, error: errData.message || 'فشل تحديث بيانات المريض' };
     } catch (error) {
-      console.error('Failed to update patient:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const addAppointment = async (appt: Omit<Appointment, 'id'>) => {
+  const addAppointment = async (appt: Omit<Appointment, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/appointments`, {
         method: 'POST',
@@ -281,13 +287,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newAppt = await res.json();
         setAppointments(prev => [...prev, newAppt]);
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل إضافة الموعد' };
     } catch (error) {
-      console.error('Failed to add appointment:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const updateAppointment = async (id: string, data: Partial<Appointment>) => {
+  const updateAppointment = async (id: string, data: Partial<Appointment>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/appointments/${id}`, {
         method: 'PATCH',
@@ -298,13 +307,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const updated = await res.json();
         setAppointments(prev => prev.map(a => a.id === id ? updated : a));
+        return { success: true };
       }
+      const errData = await res.json();
+      return { success: false, error: errData.message || 'فشل تحديث الموعد' };
     } catch (error) {
-      console.error('Failed to update appointment:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const addVisit = async (visit: Omit<Visit, 'id'>) => {
+  const addVisit = async (visit: Omit<Visit, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/visits`, {
         method: 'POST',
@@ -324,13 +336,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newVisit = await res.json();
         setVisits(prev => [newVisit, ...prev]);
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل إضافة الزيارة' };
     } catch (error) {
-      console.error('Failed to add visit:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const updateVisit = async (id: string, data: Partial<Visit>) => {
+  const updateVisit = async (id: string, data: Partial<Visit>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/visits/${id}`, {
         method: 'PATCH',
@@ -341,13 +356,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const updated = await res.json();
         setVisits(prev => prev.map(v => v.id === id ? updated : v));
+        return { success: true };
       }
+      const errData = await res.json();
+      return { success: false, error: errData.message || 'فشل تحديث الزيارة' };
     } catch (error) {
-      console.error('Failed to update visit:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+  const addExpense = async (expense: Omit<Expense, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/expenses`, {
         method: 'POST',
@@ -365,13 +383,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newExpense = await res.json();
         setExpenses(prev => [newExpense, ...prev]);
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل إضافة المصروف' };
     } catch (error) {
-      console.error('Failed to add expense:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const addService = async (service: Omit<Service, 'id'>) => {
+  const addService = async (service: Omit<Service, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/services`, {
         method: 'POST',
@@ -386,13 +407,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const newService = await res.json();
         setServices(prev => [...prev, newService]);
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل إضافة الخدمة' };
     } catch (error) {
-      console.error('Failed to add service:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const updateService = async (id: string, data: Partial<Omit<Service, 'id'>>) => {
+  const updateService = async (id: string, data: Partial<Omit<Service, 'id'>>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/services/${id}`, {
         method: 'PATCH',
@@ -407,13 +431,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const updated = await res.json();
         setServices(prev => prev.map(s => s.id === id ? updated : s));
+        return { success: true };
       }
+      const errData = await res.json();
+      return { success: false, error: errData.message || 'فشل تحديث الخدمة' };
     } catch (error) {
-      console.error('Failed to update service:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
-  const deleteService = async (id: string) => {
+  const deleteService = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/services/${id}`, {
         method: 'DELETE',
@@ -422,9 +449,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         setServices(prev => prev.filter(s => s.id !== id));
+        return { success: true };
       }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل حذف الخدمة' };
     } catch (error) {
-      console.error('Failed to delete service:', error);
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
   };
 
