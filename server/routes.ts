@@ -289,7 +289,7 @@ export async function registerRoutes(
   app.post("/api/visits", async (req, res) => {
     try {
       const { items, ...visitData } = req.body;
-      const validatedItems = z.array(insertVisitItemSchema).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items || []);
+      const validatedItems = z.array(insertVisitItemSchema.omit({ visitId: true })).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items || []);
       const serverTotal = calculateTotalFromItems(validatedItems);
       const validatedVisit = insertVisitSchema.parse({
         ...visitData,
@@ -327,7 +327,7 @@ export async function registerRoutes(
       const currentPaid = Number(oldVisit.paidAmount);
 
       if (items && Array.isArray(items)) {
-        const validatedItems = z.array(insertVisitItemSchema).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items);
+        const validatedItems = z.array(insertVisitItemSchema.omit({ visitId: true })).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items);
         const serverTotal = calculateTotalFromItems(validatedItems);
 
         const totalCheck = validateEditVisitTotal(serverTotal, currentPaid);
