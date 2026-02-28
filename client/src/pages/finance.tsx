@@ -70,7 +70,7 @@ export default function Finance() {
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       title: "",
-      amount: 0,
+      amount: undefined as any,
       date: format(new Date(), "yyyy-MM-dd"),
       category: "مشتريات",
       type: "operational",
@@ -82,7 +82,7 @@ export default function Finance() {
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       title: "",
-      amount: 0,
+      amount: undefined as any,
       date: format(new Date(), "yyyy-MM-dd"),
       category: "سحبيات",
       type: "withdrawal",
@@ -95,7 +95,7 @@ export default function Finance() {
     setIsExpenseOpen(false);
     form.reset({
       title: "",
-      amount: 0,
+      amount: undefined as any,
       date: format(new Date(), "yyyy-MM-dd"),
       category: "مشتريات",
       type: "operational",
@@ -112,7 +112,7 @@ export default function Finance() {
     setIsWithdrawalOpen(false);
     withdrawalForm.reset({
       title: "",
-      amount: 0,
+      amount: undefined as any,
       date: format(new Date(), "yyyy-MM-dd"),
       category: "سحبيات",
       type: "withdrawal",
@@ -864,7 +864,7 @@ export default function Finance() {
                         <FormItem>
                           <FormLabel>المبلغ</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} />
+                            <Input type="number" placeholder="أدخل المبلغ..." {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -999,7 +999,7 @@ export default function Finance() {
                         <FormItem>
                           <FormLabel>المبلغ</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} />
+                            <Input type="number" placeholder="أدخل المبلغ..." {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
