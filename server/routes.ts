@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { triggerRemindersManually } from "./scheduler";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
+import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId) {
@@ -205,9 +206,12 @@ export async function registerRoutes(
   app.delete("/api/services/:id", async (req, res) => {
     try {
       const oldService = await storage.getService(req.params.id);
+      if (!oldService) {
+        return res.status(404).json({ message: "الخدمة غير موجودة" });
+      }
       await storage.deleteService(req.params.id);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId || null,
         entityName: "service",
         entityId: req.params.id,
         actionType: "delete",
@@ -215,8 +219,12 @@ export async function registerRoutes(
         newValues: null,
       });
       res.status(204).send();
-    } catch (error) {
-      res.status(400).json({ message: "Failed to delete service" });
+    } catch (error: any) {
+      if (error?.code === "23503" || error?.message?.includes("foreign key")) {
+        res.status(409).json({ message: "لا يمكن حذف خدمة مرتبطة بزيارات مسجلة" });
+      } else {
+        res.status(400).json({ message: "فشل في حذف الخدمة" });
+      }
     }
   });
 
@@ -271,12 +279,20 @@ export async function registerRoutes(
   app.post("/api/visits", async (req, res) => {
     try {
       const { items, ...visitData } = req.body;
-      const validatedVisit = insertVisitSchema.parse(visitData);
-      const validatedItems = z.array(insertVisitItemSchema).parse(items || []);
+      const validatedItems = z.array(insertVisitItemSchema).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items || []);
+      const serverTotal = calculateTotalFromItems(validatedItems);
+      const validatedVisit = insertVisitSchema.parse({
+        ...visitData,
+        totalAmount: serverTotal,
+      });
+
+      if (validatedVisit.paidAmount !== undefined && validatedVisit.paidAmount > serverTotal) {
+        return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يتجاوز الإجمالي" });
+      }
 
       const visit = await storage.createVisit(validatedVisit, validatedItems);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId || null,
         entityName: "visit",
         entityId: visit.id,
         actionType: "create",
@@ -284,8 +300,9 @@ export async function registerRoutes(
         newValues: visit,
       });
       res.status(201).json(visit);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid visit data" });
+    } catch (error: any) {
+      const message = error?.issues ? error.issues.map((i: any) => i.message).join(", ") : "بيانات الزيارة غير صالحة";
+      res.status(400).json({ message });
     }
   });
 
@@ -293,13 +310,28 @@ export async function registerRoutes(
     try {
       const { items, ...visitData } = req.body;
       const oldVisit = await storage.getVisit(req.params.id);
+      if (!oldVisit) {
+        return res.status(404).json({ message: "الزيارة غير موجودة" });
+      }
+
+      const currentPaid = Number(oldVisit.paidAmount);
 
       if (items && Array.isArray(items)) {
-        const validatedItems = z.array(insertVisitItemSchema).parse(items);
-        const validatedVisit = insertVisitSchema.partial().parse(visitData);
+        const validatedItems = z.array(insertVisitItemSchema).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items);
+        const serverTotal = calculateTotalFromItems(validatedItems);
+
+        const totalCheck = validateEditVisitTotal(serverTotal, currentPaid);
+        if (!totalCheck.valid) {
+          return res.status(400).json({ message: totalCheck.error });
+        }
+
+        const validatedVisit = insertVisitSchema.partial().parse({
+          ...visitData,
+          totalAmount: serverTotal,
+        });
         const visit = await storage.updateVisitWithItems(req.params.id, validatedVisit, validatedItems);
         await storage.createAuditLog({
-          userId: null,
+          userId: req.session?.userId || null,
           entityName: "visit",
           entityId: req.params.id,
           actionType: "update",
@@ -309,9 +341,29 @@ export async function registerRoutes(
         res.json(visit);
       } else {
         const validated = insertVisitSchema.partial().parse(visitData);
+
+        if (validated.paidAmount !== undefined) {
+          if (validated.paidAmount < 0) {
+            return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يكون سالباً" });
+          }
+          if (validated.paidAmount > Number(oldVisit.totalAmount)) {
+            return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الزيارة" });
+          }
+          const delta = validated.paidAmount - currentPaid;
+          if (delta < 0) {
+            return res.status(400).json({ message: "لا يمكن تقليل المبلغ المدفوع" });
+          }
+          if (delta > 0) {
+            const remaining = Number(oldVisit.totalAmount) - currentPaid;
+            if (delta > remaining + 0.01) {
+              return res.status(400).json({ message: `مبلغ الدفعة يتجاوز المبلغ المتبقي (${remaining.toFixed(2)} ر.س)` });
+            }
+          }
+        }
+
         const visit = await storage.updateVisit(req.params.id, validated);
         await storage.createAuditLog({
-          userId: null,
+          userId: req.session?.userId || null,
           entityName: "visit",
           entityId: req.params.id,
           actionType: "update",
@@ -320,8 +372,9 @@ export async function registerRoutes(
         });
         res.json(visit);
       }
-    } catch (error) {
-      res.status(400).json({ message: "Invalid visit data" });
+    } catch (error: any) {
+      const message = error?.issues ? error.issues.map((i: any) => i.message).join(", ") : "بيانات الزيارة غير صالحة";
+      res.status(400).json({ message });
     }
   });
 
@@ -360,15 +413,31 @@ export async function registerRoutes(
   app.post("/api/payments", async (req, res) => {
     try {
       const validated = z.object({
-        visitId: z.string(),
-        date: z.string(),
-        amount: z.coerce.number(),
+        visitId: z.string().min(1),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        amount: z.coerce.number().positive("مبلغ الدفعة يجب أن يكون أكبر من صفر"),
         note: z.string().optional(),
       }).parse(req.body);
+
+      const visit = await storage.getVisit(validated.visitId);
+      if (!visit) {
+        return res.status(404).json({ message: "الزيارة غير موجودة" });
+      }
+
+      const paymentCheck = validatePaymentAmount(
+        validated.amount,
+        Number(visit.totalAmount),
+        Number(visit.paidAmount)
+      );
+      if (!paymentCheck.valid) {
+        return res.status(400).json({ message: paymentCheck.error });
+      }
+
       const payment = await storage.createPayment(validated);
       res.status(201).json(payment);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid payment data" });
+    } catch (error: any) {
+      const message = error?.issues ? error.issues.map((i: any) => i.message).join(", ") : "بيانات الدفعة غير صالحة";
+      res.status(400).json({ message });
     }
   });
 

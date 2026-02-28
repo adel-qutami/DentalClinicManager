@@ -177,6 +177,25 @@ Preferred communication style: Simple, everyday language.
 - Improved login page with visual branding
 - Improved dashboard with financial summary card and today's appointments
 
+## Validation & Security
+- `shared/validation.ts` - Shared validation utilities (calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal)
+- Server-side total recalculation: backend calculates totalAmount from items, ignores frontend value
+- Overpayment prevention: server validates payment doesn't exceed remaining balance
+- Edit visit safeguard: prevents reducing totalAmount below paidAmount
+- Negative value prevention: all prices (.min(0)), amounts (.positive()), quantities (.min(1)) validated via Zod
+- Phone format validation: must match /^05\d{8}$/
+- Date format validation: must match YYYY-MM-DD
+- Service deletion protection: FK constraint prevents deleting services used in visits (returns 409)
+- Required field enforcement: all critical fields have .min(1) or .min(2)
+
+## Testing
+- `vitest` test runner configured via `vitest.config.ts`
+- 67 unit tests in `tests/validation.test.ts` covering:
+  - Schema validation (positive/negative cases for all entities)
+  - Business logic (total calculation, payment chains, edit constraints)
+  - Edge cases (string coercion, boundary values, combined scenarios)
+- Run with: `npx vitest run`
+
 ## Build Status
 - ✅ All 6 features implemented
 - ✅ Server running on port 5000
@@ -185,3 +204,5 @@ Preferred communication style: Simple, everyday language.
 - ✅ PDF export fixed (autoTable import)
 - ✅ Lazy loading enabled
 - ✅ Pagination on visits and patients pages
+- ✅ 67 unit tests passing
+- ✅ Server-side validation hardened

@@ -48,7 +48,9 @@ export const insertPatientSchema = createInsertSchema(patients)
     notes: true,
   })
   .extend({
-    age: z.coerce.number(),
+    name: z.string().min(2, "الاسم مطلوب ويجب أن يكون حرفين على الأقل").max(100),
+    phone: z.string().regex(/^05\d{8}$/, "رقم الهاتف يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+    age: z.coerce.number().int().min(0, "العمر لا يمكن أن يكون سالباً").max(150, "العمر غير منطقي"),
     gender: z.enum(["male", "female"]),
   });
 
@@ -67,7 +69,8 @@ export const insertServiceSchema = createInsertSchema(services).pick({
   defaultPrice: true,
   requiresTeethSelection: true,
 }).extend({
-  defaultPrice: z.coerce.number(),
+  name: z.string().min(2, "اسم الخدمة مطلوب"),
+  defaultPrice: z.coerce.number().min(0, "السعر لا يمكن أن يكون سالباً"),
   requiresTeethSelection: z.boolean().optional().default(false),
 });
 
@@ -95,7 +98,9 @@ export const insertAppointmentSchema = createInsertSchema(appointments)
     notes: true,
   })
   .extend({
-    date: z.string(),
+    patientId: z.string().min(1, "المريض مطلوب"),
+    doctorName: z.string().min(1, "اسم الطبيب مطلوب"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
     period: z.enum(["morning", "evening"]),
     status: z.enum(["scheduled", "completed", "cancelled"]),
   });
@@ -120,8 +125,9 @@ export const insertPaymentSchema = createInsertSchema(payments)
     note: true,
   })
   .extend({
-    date: z.string(),
-    amount: z.coerce.number(),
+    visitId: z.string().min(1, "الزيارة مطلوبة"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
+    amount: z.coerce.number().positive("مبلغ الدفعة يجب أن يكون أكبر من صفر"),
   });
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
@@ -147,8 +153,9 @@ export const insertVisitItemSchema = createInsertSchema(visitItems)
     jawType: true,
   })
   .extend({
-    price: z.coerce.number(),
-    quantity: z.coerce.number().int().min(1),
+    serviceId: z.string().min(1, "الخدمة مطلوبة"),
+    price: z.coerce.number().min(0, "السعر لا يمكن أن يكون سالباً"),
+    quantity: z.coerce.number().int().min(1, "الكمية يجب أن تكون 1 على الأقل"),
     toothNumbers: z.array(z.string()).optional().nullable(),
     jawType: z.enum(["single_tooth", "full_jaw_upper", "full_jaw_lower", "full_mouth"]).optional().nullable(),
   });
@@ -181,9 +188,11 @@ export const insertVisitSchema = createInsertSchema(visits)
     notes: true,
   })
   .extend({
-    date: z.string(),
-    totalAmount: z.coerce.number(),
-    paidAmount: z.coerce.number().optional(),
+    patientId: z.string().min(1, "المريض مطلوب"),
+    doctorName: z.string().min(1, "اسم الطبيب مطلوب"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
+    totalAmount: z.coerce.number().min(0, "الإجمالي لا يمكن أن يكون سالباً"),
+    paidAmount: z.coerce.number().min(0, "المبلغ المدفوع لا يمكن أن يكون سالباً").optional(),
   });
 
 export type InsertVisit = z.infer<typeof insertVisitSchema>;
@@ -210,8 +219,10 @@ export const insertExpenseSchema = createInsertSchema(expenses)
     notes: true,
   })
   .extend({
-    date: z.string(),
-    amount: z.coerce.number(),
+    title: z.string().min(1, "عنوان المصروف مطلوب"),
+    category: z.string().min(1, "التصنيف مطلوب"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
+    amount: z.coerce.number().positive("المبلغ يجب أن يكون أكبر من صفر"),
     type: z.enum(["operational", "fixed", "withdrawal"]),
   });
 
