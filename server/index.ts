@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startReminderScheduler } from "./scheduler";
+import { autoSeedIfEmpty } from "./auto-seed";
 
 declare module "express-session" {
   interface SessionData {
@@ -119,8 +120,9 @@ app.use((req, res, next) => {
       host: "0.0.0.0",
       reusePort: true,
     },
-    () => {
+    async () => {
       log(`serving on port ${port}`);
+      await autoSeedIfEmpty();
       startReminderScheduler();
     },
   );

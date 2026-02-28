@@ -83,38 +83,40 @@ export default function Finance() {
     },
   });
 
-  function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
-    addExpense(values);
-    setShowExpenseForm(false);
-    form.reset({
-      title: "",
-      amount: undefined as any,
-      date: format(new Date(), "yyyy-MM-dd"),
-      category: "مشتريات",
-      type: "operational",
-      notes: "",
-    });
-    toast({
-      title: "تم تسجيل المصروف",
-      description: "تم إضافة المصروف بنجاح",
-    });
+  async function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
+    const result = await addExpense(values);
+    if (result.success) {
+      setShowExpenseForm(false);
+      form.reset({
+        title: "",
+        amount: undefined as any,
+        date: format(new Date(), "yyyy-MM-dd"),
+        category: "مشتريات",
+        type: "operational",
+        notes: "",
+      });
+      toast({ title: "تم تسجيل المصروف", description: "تم إضافة المصروف بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   }
 
-  function onWithdrawalSubmit(values: z.infer<typeof expenseSchema>) {
-    addExpense(values);
-    setShowWithdrawalForm(false);
-    withdrawalForm.reset({
-      title: "",
-      amount: undefined as any,
-      date: format(new Date(), "yyyy-MM-dd"),
-      category: "سحبيات",
-      type: "withdrawal",
-      notes: "",
-    });
-    toast({
-      title: "تم تسجيل السحب",
-      description: "تم إضافة السحب الشخصي بنجاح",
-    });
+  async function onWithdrawalSubmit(values: z.infer<typeof expenseSchema>) {
+    const result = await addExpense(values);
+    if (result.success) {
+      setShowWithdrawalForm(false);
+      withdrawalForm.reset({
+        title: "",
+        amount: undefined as any,
+        date: format(new Date(), "yyyy-MM-dd"),
+        category: "سحبيات",
+        type: "withdrawal",
+        notes: "",
+      });
+      toast({ title: "تم تسجيل السحب", description: "تم إضافة السحب الشخصي بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   }
 
   const filteredData = useMemo(() => {

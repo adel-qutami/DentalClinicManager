@@ -95,7 +95,7 @@ export default function Visits() {
     });
   }
 
-  function onSubmit(values: z.infer<typeof visitSchema>) {
+  async function onSubmit(values: z.infer<typeof visitSchema>) {
     const itemsWithTeeth = values.items.map(item => {
       const service = services?.find(s => s.id === item.serviceId);
       if (service?.requiresTeethSelection) {
@@ -114,17 +114,18 @@ export default function Visits() {
       };
     });
 
-    addVisit({
+    const result = await addVisit({
       ...values,
       items: itemsWithTeeth,
       totalAmount,
       paidAmount: values.paidAmount || 0
     });
-    resetAndGoToList();
-    toast({
-      title: "تم تسجيل الزيارة",
-      description: "تم حفظ بيانات الزيارة والدفع بنجاح",
-    });
+    if (result.success) {
+      resetAndGoToList();
+      toast({ title: "تم تسجيل الزيارة", description: "تم حفظ بيانات الزيارة والدفع بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   }
 
   const openEditView = (visit: Visit) => {
@@ -145,7 +146,7 @@ export default function Visits() {
     setViewMode("edit");
   };
 
-  function onEditSubmit(values: z.infer<typeof visitSchema>) {
+  async function onEditSubmit(values: z.infer<typeof visitSchema>) {
     if (!selectedVisit) return;
     const editItemsWithTeeth = values.items.map(item => {
       const service = services?.find(s => s.id === item.serviceId);
@@ -165,17 +166,18 @@ export default function Visits() {
       };
     });
 
-    updateVisit(selectedVisit.id, {
+    const result = await updateVisit(selectedVisit.id, {
       doctorName: values.doctorName,
       date: values.date,
       totalAmount: editTotalAmount,
       items: editItemsWithTeeth,
     } as any);
-    resetAndGoToList();
-    toast({
-      title: "تم تعديل الزيارة",
-      description: "تم حفظ التعديلات بنجاح",
-    });
+    if (result.success) {
+      resetAndGoToList();
+      toast({ title: "تم تعديل الزيارة", description: "تم حفظ التعديلات بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   }
 
   const handleEditServiceChange = (index: number, serviceId: string) => {
@@ -206,7 +208,7 @@ export default function Visits() {
     }
   };
 
-  const handleAddPayment = () => {
+  const handleAddPayment = async () => {
     if (!selectedVisit || !newPaymentAmount) return;
 
     const paymentAmount = parseFloat(newPaymentAmount);
@@ -221,14 +223,17 @@ export default function Visits() {
       return;
     }
 
-    updateVisit(selectedVisit.id, {
+    const result = await updateVisit(selectedVisit.id, {
       paidAmount: newTotalPaid
     });
-
-    setNewPaymentAmount("");
-    setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-    resetAndGoToList();
-    toast({ title: "تم تسجيل الدفعة بنجاح" });
+    if (result.success) {
+      setNewPaymentAmount("");
+      setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+      resetAndGoToList();
+      toast({ title: "تم تسجيل الدفعة بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   };
 
   const getJawTypeLabel = (jawType: string | null | undefined): string => {

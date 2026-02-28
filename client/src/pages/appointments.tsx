@@ -107,19 +107,31 @@ export default function Appointments() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof appointmentSchema>) {
-    addAppointment({ ...values, status: 'scheduled' });
-    setShowForm(false);
-    form.reset();
-    toast({
-      title: "تم حجز الموعد",
-      description: "تم إضافة الموعد إلى الجدول بنجاح",
-    });
+  async function onSubmit(values: z.infer<typeof appointmentSchema>) {
+    const result = await addAppointment({ ...values, status: 'scheduled' });
+    if (result.success) {
+      setShowForm(false);
+      form.reset();
+      toast({
+        title: "تم حجز الموعد",
+        description: "تم إضافة الموعد إلى الجدول بنجاح",
+      });
+    } else {
+      toast({
+        title: "فشلت العملية",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
   }
 
-  const handleStatusChange = (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
-    updateAppointment(id, { status });
-    toast({ description: "تم تحديث حالة الموعد" });
+  const handleStatusChange = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
+    const result = await updateAppointment(id, { status });
+    if (result.success) {
+      toast({ description: "تم تحديث حالة الموعد" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
   };
 
   const sortedAppointments = [...appointments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

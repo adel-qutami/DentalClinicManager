@@ -43,22 +43,25 @@ export default function Services() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof serviceSchema>) {
+  async function onSubmit(values: z.infer<typeof serviceSchema>) {
     if (editingId) {
-      updateService(editingId, values);
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث الخدمة بنجاح",
-      });
-      setEditingId(null);
+      const result = await updateService(editingId, values);
+      if (result.success) {
+        toast({ title: "تم التحديث", description: "تم تحديث الخدمة بنجاح" });
+        setEditingId(null);
+        setShowForm(false);
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
     } else {
-      addService(values);
-      toast({
-        title: "تمت العملية بنجاح",
-        description: "تم إضافة الخدمة الجديدة",
-      });
+      const result = await addService(values);
+      if (result.success) {
+        toast({ title: "تمت العملية بنجاح", description: "تم إضافة الخدمة الجديدة" });
+        setShowForm(false);
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
     }
-    setShowForm(false);
     form.reset();
   }
 
@@ -76,13 +79,14 @@ export default function Services() {
     setDeleteId(service.id);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (deleteId) {
-      deleteService(deleteId);
-      toast({
-        title: "تم الحذف",
-        description: "تم حذف الخدمة بنجاح",
-      });
+      const result = await deleteService(deleteId);
+      if (result.success) {
+        toast({ title: "تم الحذف", description: "تم حذف الخدمة بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
       setDeleteId(null);
     }
   }

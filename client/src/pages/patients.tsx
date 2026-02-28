@@ -57,14 +57,22 @@ export default function Patients() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  function onSubmit(values: z.infer<typeof patientSchema>) {
-    addPatient(values);
-    setShowForm(false);
-    form.reset();
-    toast({
-      title: "تمت العملية بنجاح",
-      description: "تم إضافة ملف المريض الجديد",
-    });
+  async function onSubmit(values: z.infer<typeof patientSchema>) {
+    const result = await addPatient(values);
+    if (result.success) {
+      setShowForm(false);
+      form.reset();
+      toast({
+        title: "تمت العملية بنجاح",
+        description: "تم إضافة ملف المريض الجديد",
+      });
+    } else {
+      toast({
+        title: "فشلت العملية",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
   }
 
   if (loading) {
