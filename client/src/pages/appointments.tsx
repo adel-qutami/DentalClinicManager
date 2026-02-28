@@ -52,7 +52,7 @@ export default function Appointments() {
   const fetchReminderLogs = async () => {
     setLoadingReminders(true);
     try {
-      const res = await fetch('/api/reminder-logs');
+      const res = await fetch('/api/reminder-logs', { credentials: 'include' });
       if (res.ok) {
         setReminderLogs(await res.json());
       }
@@ -70,7 +70,7 @@ export default function Appointments() {
   const handleSendTestReminder = async () => {
     setSendingTest(true);
     try {
-      const res = await fetch('/api/reminders/send-test', { method: 'POST' });
+      const res = await fetch('/api/reminders/send-test', { method: 'POST', credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         toast({

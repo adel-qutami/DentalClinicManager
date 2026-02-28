@@ -67,7 +67,7 @@ export default function AuditLogPage() {
         params.set("entityName", entityFilter);
       }
       const url = `/api/audit-logs${params.toString() ? `?${params.toString()}` : ""}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch audit logs");
       return res.json();
     },

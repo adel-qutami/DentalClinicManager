@@ -20,6 +20,12 @@ declare module "http" {
   }
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -36,9 +42,10 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: isProduction,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
+      sameSite: "lax",
     },
   }),
 );

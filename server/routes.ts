@@ -9,10 +9,18 @@ import {
   insertExpenseSchema,
   insertVisitItemSchema,
 } from "@shared/schema";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { triggerRemindersManually } from "./scheduler";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
+
+function formatZodError(error: unknown): string {
+  if (error instanceof ZodError) {
+    return error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+  }
+  if (error instanceof Error) return error.message;
+  return "بيانات غير صالحة";
+}
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId) {
@@ -57,7 +65,7 @@ export async function registerRoutes(
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
-      res.status(400).json({ message: "بيانات غير صالحة" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -97,7 +105,7 @@ export async function registerRoutes(
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {
-      res.status(400).json({ message: "بيانات غير صالحة" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -129,7 +137,8 @@ export async function registerRoutes(
       });
       res.status(201).json(patient);
     } catch (error) {
-      res.status(400).json({ message: "Invalid patient data" });
+      console.error("Patient validation error:", error);
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -148,7 +157,8 @@ export async function registerRoutes(
       });
       res.json(patient);
     } catch (error) {
-      res.status(400).json({ message: "Invalid patient data" });
+      console.error("Patient update validation error:", error);
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -180,7 +190,7 @@ export async function registerRoutes(
       });
       res.status(201).json(service);
     } catch (error) {
-      res.status(400).json({ message: "Invalid service data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -199,7 +209,7 @@ export async function registerRoutes(
       });
       res.json(service);
     } catch (error) {
-      res.status(400).json({ message: "Invalid service data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -248,7 +258,7 @@ export async function registerRoutes(
       const appointment = await storage.createAppointment(validated);
       res.status(201).json(appointment);
     } catch (error) {
-      res.status(400).json({ message: "Invalid appointment data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -258,7 +268,7 @@ export async function registerRoutes(
       const appointment = await storage.updateAppointment(req.params.id, validated);
       res.json(appointment);
     } catch (error) {
-      res.status(400).json({ message: "Invalid appointment data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -460,7 +470,7 @@ export async function registerRoutes(
       });
       res.status(201).json(expense);
     } catch (error) {
-      res.status(400).json({ message: "Invalid expense data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -525,7 +535,7 @@ export async function registerRoutes(
       const { password, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
-      res.status(400).json({ message: "Invalid role data" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 
@@ -546,7 +556,7 @@ export async function registerRoutes(
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {
-      res.status(400).json({ message: "بيانات غير صالحة" });
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 

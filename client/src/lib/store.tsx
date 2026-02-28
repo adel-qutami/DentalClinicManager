@@ -142,12 +142,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
+      const fetchOpts = { credentials: 'include' as RequestCredentials };
       const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes] = await Promise.all([
-        fetch(`${API_BASE}/patients`),
-        fetch(`${API_BASE}/services`),
-        fetch(`${API_BASE}/appointments`),
-        fetch(`${API_BASE}/visits`),
-        fetch(`${API_BASE}/expenses`),
+        fetch(`${API_BASE}/patients`, fetchOpts),
+        fetch(`${API_BASE}/services`, fetchOpts),
+        fetch(`${API_BASE}/appointments`, fetchOpts),
+        fetch(`${API_BASE}/visits`, fetchOpts),
+        fetch(`${API_BASE}/expenses`, fetchOpts),
       ]);
 
       if (patientsRes.ok) setPatients(await patientsRes.json());
@@ -234,6 +235,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: patient.name,
           phone: patient.phone,
@@ -256,6 +258,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/patients/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       if (res.ok) {
@@ -272,6 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(appt),
       });
       if (res.ok) {
@@ -288,6 +292,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       if (res.ok) {
@@ -304,6 +309,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/visits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           patientId: visit.patientId,
           date: visit.date,
@@ -329,6 +335,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/visits/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       if (res.ok) {
@@ -345,6 +352,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           title: expense.title,
           amount: Number(expense.amount),
@@ -368,6 +376,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/services`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: service.name,
           defaultPrice: Number(service.defaultPrice),
@@ -388,6 +397,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/services/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: data.name,
           defaultPrice: data.defaultPrice ? Number(data.defaultPrice) : undefined,
@@ -408,6 +418,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/services/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
       if (res.ok) {
         setServices(prev => prev.filter(s => s.id !== id));
