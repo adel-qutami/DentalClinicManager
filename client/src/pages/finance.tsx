@@ -11,13 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -25,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -55,8 +48,8 @@ const expenseSchema = z.object({
 
 export default function Finance() {
   const { expenses, visits, appointments, patients, services, addExpense } = useStore();
-  const [isExpenseOpen, setIsExpenseOpen] = useState(false);
-  const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
   const { toast } = useToast();
 
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
@@ -92,7 +85,7 @@ export default function Finance() {
 
   function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
     addExpense(values);
-    setIsExpenseOpen(false);
+    setShowExpenseForm(false);
     form.reset({
       title: "",
       amount: undefined as any,
@@ -109,7 +102,7 @@ export default function Finance() {
 
   function onWithdrawalSubmit(values: z.infer<typeof expenseSchema>) {
     addExpense(values);
-    setIsWithdrawalOpen(false);
+    setShowWithdrawalForm(false);
     withdrawalForm.reset({
       title: "",
       amount: undefined as any,
@@ -124,7 +117,6 @@ export default function Finance() {
     });
   }
 
-  // --- Dynamic Filtering Logic ---
   const filteredData = useMemo(() => {
     const targetDate = parseISO(selectedDate);
     const targetMonth = parseISO(selectedMonth + '-01');
@@ -155,7 +147,6 @@ export default function Finance() {
     };
   }, [reportType, selectedDate, selectedMonth, selectedYear, visits, expenses, appointments, filterDoctor, filterService]);
 
-  // --- Statistics Calculation ---
   const stats = useMemo(() => {
     const income = filteredData.visits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
     
@@ -185,9 +176,7 @@ export default function Finance() {
     };
   }, [filteredData]);
 
-  // --- Extended Analytics ---
   const analytics = useMemo(() => {
-    // Doctor Performance
     const doctorStats: Record<string, { visits: number; revenue: number }> = {};
     filteredData.visits.forEach(v => {
       if (!doctorStats[v.doctorName]) doctorStats[v.doctorName] = { visits: 0, revenue: 0 };
@@ -200,7 +189,6 @@ export default function Finance() {
       revenue: doctorStats[k].revenue 
     }));
 
-    // Service Popularity
     const serviceStats: Record<string, number> = {};
     filteredData.visits.forEach(v => {
       v.items.forEach(item => {
@@ -212,11 +200,8 @@ export default function Finance() {
     const serviceData = Object.keys(serviceStats)
       .map(k => ({ name: k, count: serviceStats[k] }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5); // Top 5
+      .slice(0, 5);
 
-    // Patient Demographics (All active patients, not just filtered, usually better for general stats, but let's stick to filtered context if possible - actually patients are global)
-    // Let's filter patients who visited in this period? Or just general stats? 
-    // "Reports for everything" implies deep dive. Let's show stats for patients who visited in this period.
     const patientIdsInPeriod = new Set(filteredData.visits.map(v => v.patientId));
     const activePatients = patients.filter(p => patientIdsInPeriod.has(p.id));
     
@@ -230,7 +215,6 @@ export default function Finance() {
       { name: 'إناث', value: genderStats.female }
     ];
 
-    // Appointment Status
     const apptStats = filteredData.appointments.reduce((acc, a) => {
       acc[a.status] = (acc[a.status] || 0) + 1;
       return acc;
@@ -245,7 +229,6 @@ export default function Finance() {
     return { doctorData, serviceData, genderData, apptData };
   }, [filteredData, services, patients]);
 
-  // --- Charts Data Preparation ---
   const chartData = useMemo(() => {
     if (reportType === 'yearly') {
       return Array.from({ length: 12 }, (_, i) => {
@@ -286,7 +269,7 @@ export default function Finance() {
   });
   const categoryData = Object.keys(categoryDataRaw).map(k => ({ name: k, value: categoryDataRaw[k] }));
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-  const APPT_COLORS = ['#10B981', '#3B82F6', '#EF4444']; // Green, Blue, Red
+  const APPT_COLORS = ['#10B981', '#3B82F6', '#EF4444'];
 
   const onlyExpenses = expenses.filter(e => e.type !== 'withdrawal');
   const onlyWithdrawals = expenses.filter(e => e.type === 'withdrawal');
@@ -434,9 +417,7 @@ export default function Finance() {
           <TabsTrigger value="withdrawals">السحبيات</TabsTrigger>
         </TabsList>
 
-        {/* --- Reports Tab --- */}
         <TabsContent value="reports" className="space-y-6">
-          {/* Filters Bar */}
           <Card className="p-4 bg-muted/30 border-none">
             <div className="flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
               <div className="flex flex-col md:flex-row gap-4 items-center w-full md:w-auto">
@@ -547,7 +528,6 @@ export default function Finance() {
             </div>
           </Card>
 
-          {/* Financial Summary Cards */}
           <div className="grid gap-4 md:grid-cols-4">
             <Card className="border-none shadow-md">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -598,9 +578,7 @@ export default function Finance() {
             </Card>
           </div>
 
-          {/* --- Operational Analytics Section --- */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Doctor Performance */}
             <Card className="col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -623,7 +601,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            {/* Top Services */}
             <Card>
               <CardHeader>
                 <CardTitle>أكثر الخدمات طلباً</CardTitle>
@@ -650,7 +627,6 @@ export default function Finance() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-             {/* Financial Chart */}
              <Card className="col-span-2">
               <CardHeader>
                 <CardTitle>التحليل المالي</CardTitle>
@@ -670,7 +646,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-             {/* Expenses Pie */}
              <Card>
               <CardHeader>
                 <CardTitle>توزيع المصروفات</CardTitle>
@@ -705,9 +680,7 @@ export default function Finance() {
             </Card>
           </div>
 
-          {/* --- Demographics & Operations --- */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {/* Appointment Status */}
             <Card className="col-span-1">
                <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
@@ -738,7 +711,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            {/* Gender Stats */}
              <Card className="col-span-1">
                <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
@@ -756,8 +728,8 @@ export default function Finance() {
                         outerRadius={70}
                         dataKey="value"
                       >
-                        <Cell fill="#3B82F6" /> {/* Male */}
-                        <Cell fill="#EC4899" /> {/* Female */}
+                        <Cell fill="#3B82F6" />
+                        <Cell fill="#EC4899" />
                       </Pie>
                       <Tooltip />
                       <Legend verticalAlign="bottom" height={36}/>
@@ -766,7 +738,6 @@ export default function Finance() {
               </CardContent>
             </Card>
 
-            {/* Detailed Lists Tables */}
             <Card className="col-span-2">
               <CardHeader>
                 <CardTitle>أحدث العمليات المالية</CardTitle>
@@ -781,7 +752,6 @@ export default function Finance() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Combine visits and expenses for a timeline view */}
                     {[
                         ...filteredData.visits.map(v => ({ date: v.date, type: 'income', title: 'زيارة مريض', amount: v.paidAmount })),
                         ...filteredData.expenses.map(e => ({ date: e.date, type: 'expense', title: e.title, amount: e.amount }))
@@ -810,21 +780,26 @@ export default function Finance() {
           </div>
         </TabsContent>
 
-        {/* --- Expenses Tab (Operational + Fixed Only) --- */}
         <TabsContent value="expenses" className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold">سجل المصروفات التشغيلية والثابتة</h3>
-            <Dialog open={isExpenseOpen} onOpenChange={setIsExpenseOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  مصروف جديد
+            {!showExpenseForm && (
+              <Button className="gap-2" onClick={() => setShowExpenseForm(true)}>
+                <Plus className="w-4 h-4" />
+                مصروف جديد
+              </Button>
+            )}
+          </div>
+
+          {showExpenseForm && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="text-lg">تسجيل مصروف جديد</CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => { setShowExpenseForm(false); form.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "مشتريات", type: "operational", notes: "" }); }} data-testid="button-close-expense-form">
+                  <X className="w-4 h-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>تسجيل مصروف جديد</DialogTitle>
-                </DialogHeader>
+              </CardHeader>
+              <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onExpenseSubmit)} className="space-y-4">
                      <FormField
@@ -915,14 +890,15 @@ export default function Finance() {
                         </FormItem>
                       )}
                     />
-                    <div className="flex justify-end pt-4">
-                      <Button type="submit">حفظ</Button>
+                    <div className="flex gap-3 pt-4">
+                      <Button type="submit" data-testid="button-save-expense">حفظ</Button>
+                      <Button type="button" variant="outline" onClick={() => { setShowExpenseForm(false); form.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "مشتريات", type: "operational", notes: "" }); }} data-testid="button-cancel-expense">إلغاء</Button>
                     </div>
                   </form>
                 </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="rounded-md border bg-card">
             <Table>
@@ -966,21 +942,26 @@ export default function Finance() {
           </div>
         </TabsContent>
 
-        {/* --- Withdrawals Tab --- */}
         <TabsContent value="withdrawals" className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold">سجل السحبيات الشخصية</h3>
-            <Dialog open={isWithdrawalOpen} onOpenChange={setIsWithdrawalOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2" variant="secondary">
-                  <ArrowDownCircle className="w-4 h-4" />
-                  سحب جديد
+            {!showWithdrawalForm && (
+              <Button className="gap-2" variant="secondary" onClick={() => setShowWithdrawalForm(true)}>
+                <ArrowDownCircle className="w-4 h-4" />
+                سحب جديد
+              </Button>
+            )}
+          </div>
+
+          {showWithdrawalForm && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="text-lg">تسجيل سحب شخصي</CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => { setShowWithdrawalForm(false); withdrawalForm.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "سحبيات", type: "withdrawal", notes: "" }); }} data-testid="button-close-withdrawal-form">
+                  <X className="w-4 h-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>تسجيل سحب شخصي</DialogTitle>
-                </DialogHeader>
+              </CardHeader>
+              <CardContent>
                 <Form {...withdrawalForm}>
                   <form onSubmit={withdrawalForm.handleSubmit(onWithdrawalSubmit)} className="space-y-4">
                     <FormField
@@ -1049,14 +1030,15 @@ export default function Finance() {
                         </FormItem>
                       )}
                     />
-                    <div className="flex justify-end pt-4">
-                      <Button type="submit">تأكيد السحب</Button>
+                    <div className="flex gap-3 pt-4">
+                      <Button type="submit" data-testid="button-save-withdrawal">تأكيد السحب</Button>
+                      <Button type="button" variant="outline" onClick={() => { setShowWithdrawalForm(false); withdrawalForm.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "سحبيات", type: "withdrawal", notes: "" }); }} data-testid="button-cancel-withdrawal">إلغاء</Button>
                     </div>
                   </form>
                 </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="rounded-md border bg-card">
             <Table>

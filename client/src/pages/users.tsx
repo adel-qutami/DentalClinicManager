@@ -12,15 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Shield, UserCog } from "lucide-react";
+import { Plus, Shield, UserCog, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserRecord {
@@ -32,7 +26,7 @@ interface UserRecord {
 export default function Users() {
   const { user: currentUser } = useStore();
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<Role>("receptionist");
@@ -68,7 +62,7 @@ export default function Users() {
       if (res.ok) {
         const created = await res.json();
         setUsers((prev) => [...prev, created]);
-        setIsOpen(false);
+        setShowForm(false);
         setNewUsername("");
         setNewPassword("");
         setNewRole("receptionist");
@@ -126,61 +120,68 @@ export default function Users() {
           <h2 className="text-3xl font-bold tracking-tight" data-testid="text-users-title">إدارة المستخدمين</h2>
           <p className="text-muted-foreground mt-2">إدارة حسابات المستخدمين وصلاحياتهم.</p>
         </div>
-        <Button className="gap-2" onClick={() => setIsOpen(true)} data-testid="button-add-user">
-          <Plus className="w-4 h-4" />
-          مستخدم جديد
-        </Button>
+        {!showForm && (
+          <Button className="gap-2" onClick={() => setShowForm(true)} data-testid="button-add-user">
+            <Plus className="w-4 h-4" />
+            مستخدم جديد
+          </Button>
+        )}
       </div>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>إضافة مستخدم جديد</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateUser} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">اسم المستخدم</label>
-              <Input
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                placeholder="أدخل اسم المستخدم"
-                required
-                data-testid="input-new-username"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">كلمة المرور</label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور"
-                required
-                data-testid="input-new-password"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">الدور</label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
-                <SelectTrigger data-testid="select-new-role">
-                  <SelectValue placeholder="اختر الدور" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manager">مدير العيادة</SelectItem>
-                  <SelectItem value="dentist">طبيب أسنان</SelectItem>
-                  <SelectItem value="receptionist">موظف استقبال</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" data-testid="button-save-user">إضافة</Button>
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)} data-testid="button-cancel-user">
-                إلغاء
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {showForm && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-lg">إضافة مستخدم جديد</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }} data-testid="button-close-form">
+              <X className="w-4 h-4" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">اسم المستخدم</label>
+                <Input
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="أدخل اسم المستخدم"
+                  required
+                  data-testid="input-new-username"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">كلمة المرور</label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="أدخل كلمة المرور"
+                  required
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">الدور</label>
+                <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
+                  <SelectTrigger data-testid="select-new-role">
+                    <SelectValue placeholder="اختر الدور" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manager">مدير العيادة</SelectItem>
+                    <SelectItem value="dentist">طبيب أسنان</SelectItem>
+                    <SelectItem value="receptionist">موظف استقبال</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" data-testid="button-save-user">إضافة</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }} data-testid="button-cancel-user">
+                  إلغاء
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

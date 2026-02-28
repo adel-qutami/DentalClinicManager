@@ -10,20 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, User, Phone } from "lucide-react";
+import { Plus, Search, User, Phone, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const patientSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
@@ -38,7 +32,7 @@ const ITEMS_PER_PAGE = 12;
 export default function Patients() {
   const { patients, addPatient, loading } = useStore();
   const [search, setSearch] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
@@ -47,7 +41,7 @@ export default function Patients() {
     defaultValues: {
       name: "",
       phone: "",
-      age: 0,
+      age: "" as any,
       gender: "male",
       notes: "",
     },
@@ -65,7 +59,7 @@ export default function Patients() {
 
   function onSubmit(values: z.infer<typeof patientSchema>) {
     addPatient(values);
-    setIsOpen(false);
+    setShowForm(false);
     form.reset();
     toast({
       title: "تمت العملية بنجاح",
@@ -93,17 +87,23 @@ export default function Patients() {
           <h2 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">المرضى</h2>
           <p className="text-muted-foreground text-sm mt-1">إدارة ملفات المرضى وتاريخهم المرضي.</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" data-testid="button-add-patient">
-              <Plus className="w-4 h-4" />
-              مريض جديد
+        {!showForm && (
+          <Button className="gap-2" onClick={() => setShowForm(true)} data-testid="button-add-patient">
+            <Plus className="w-4 h-4" />
+            مريض جديد
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-lg">إضافة مريض جديد</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => { setShowForm(false); form.reset(); }} data-testid="button-close-form">
+              <X className="w-4 h-4" />
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>إضافة مريض جديد</DialogTitle>
-            </DialogHeader>
+          </CardHeader>
+          <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -140,7 +140,7 @@ export default function Patients() {
                       <FormItem>
                         <FormLabel>العمر</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="30" {...field} data-testid="input-patient-age" />
+                          <Input type="number" placeholder="30" {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value)} data-testid="input-patient-age" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -181,14 +181,15 @@ export default function Patients() {
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end pt-4">
+                <div className="flex gap-3 pt-4">
                   <Button type="submit" data-testid="button-save-patient">حفظ الملف</Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowForm(false); form.reset(); }} data-testid="button-cancel-patient">إلغاء</Button>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center gap-2 bg-card p-2 rounded-lg border w-full md:w-96">
         <Search className="w-5 h-5 text-muted-foreground" />

@@ -10,20 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Edit, Trash2, AlertCircle, CircleDot } from "lucide-react";
+import { Plus, Edit, Trash2, AlertCircle, CircleDot, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const serviceSchema = z.object({
   name: z.string().min(2, "اسم الخدمة مطلوب"),
@@ -35,7 +29,7 @@ export default function Services() {
   const { services, addService, updateService, deleteService, can } = useStore();
   const canManage = can("services_manage");
   const canEditPrice = can("services_price_edit");
-  const [isOpen, setIsOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -44,7 +38,7 @@ export default function Services() {
     resolver: zodResolver(serviceSchema),
     defaultValues: {
       name: "",
-      defaultPrice: 0,
+      defaultPrice: "" as any,
       requiresTeethSelection: false,
     },
   });
@@ -64,7 +58,7 @@ export default function Services() {
         description: "تم إضافة الخدمة الجديدة",
       });
     }
-    setIsOpen(false);
+    setShowForm(false);
     form.reset();
   }
 
@@ -75,7 +69,7 @@ export default function Services() {
       defaultPrice: Number(service.defaultPrice),
       requiresTeethSelection: service.requiresTeethSelection ?? false,
     });
-    setIsOpen(true);
+    setShowForm(true);
   }
 
   function handleDelete(service: Service) {
@@ -93,6 +87,12 @@ export default function Services() {
     }
   }
 
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    form.reset();
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -100,23 +100,23 @@ export default function Services() {
           <h2 className="text-3xl font-bold tracking-tight">الخدمات الطبية</h2>
           <p className="text-muted-foreground mt-2">إدارة الخدمات المقدمة بالعيادة وأسعارها الافتراضية.</p>
         </div>
-        {canManage && <Dialog open={isOpen && !deleteId} onOpenChange={(open) => {
-          setIsOpen(open);
-          if (!open) {
-            setEditingId(null);
-            form.reset();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" data-testid="button-add-service">
-              <Plus className="w-4 h-4" />
-              خدمة جديدة
+        {canManage && !showForm && (
+          <Button className="gap-2" onClick={() => { setEditingId(null); form.reset(); setShowForm(true); }} data-testid="button-add-service">
+            <Plus className="w-4 h-4" />
+            خدمة جديدة
+          </Button>
+        )}
+      </div>
+
+      {showForm && canManage && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-lg">{editingId ? "تعديل الخدمة" : "إضافة خدمة جديدة"}</CardTitle>
+            <Button variant="ghost" size="icon" onClick={closeForm} data-testid="button-close-form">
+              <X className="w-4 h-4" />
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "تعديل الخدمة" : "إضافة خدمة جديدة"}</DialogTitle>
-            </DialogHeader>
+          </CardHeader>
+          <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -139,7 +139,7 @@ export default function Services() {
                     <FormItem>
                       <FormLabel>السعر الافتراضي (ر.س)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="200" {...field} data-testid="input-service-price" />
+                        <Input type="number" placeholder="200" {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} data-testid="input-service-price" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -166,37 +166,25 @@ export default function Services() {
                 />
                 <div className="flex gap-3 pt-4">
                   <Button type="submit" data-testid="button-save-service">{editingId ? "تحديث" : "إضافة"}</Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsOpen(false);
-                      setEditingId(null);
-                      form.reset();
-                    }}
-                    data-testid="button-cancel-service"
-                  >
+                  <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-service">
                     إلغاء
                   </Button>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>}
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteId} onOpenChange={(open) => {
-        if (!open) setDeleteId(null);
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+      {deleteId && (
+        <Card className="border-red-200 dark:border-red-800">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-red-600">
               <AlertCircle className="w-5 h-5" />
               تأكيد الحذف
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <p>هل تريد حذف هذه الخدمة؟ لا يمكن التراجع عن هذه العملية.</p>
             <div className="flex gap-3">
               <Button 
@@ -214,9 +202,9 @@ export default function Services() {
                 إلغاء
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="border rounded-lg overflow-hidden">
         <Table>

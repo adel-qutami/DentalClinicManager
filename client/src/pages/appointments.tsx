@@ -11,15 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Calendar as CalendarIcon, Bell, Send, RefreshCw } from "lucide-react";
+import { Plus, Search, Calendar as CalendarIcon, Bell, Send, RefreshCw, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -50,7 +43,7 @@ const appointmentSchema = z.object({
 
 export default function Appointments() {
   const { appointments, patients, addAppointment, updateAppointment } = useStore();
-  const [isOpen, setIsOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [reminderLogs, setReminderLogs] = useState<ReminderLog[]>([]);
   const [loadingReminders, setLoadingReminders] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
@@ -116,7 +109,7 @@ export default function Appointments() {
 
   function onSubmit(values: z.infer<typeof appointmentSchema>) {
     addAppointment({ ...values, status: 'scheduled' });
-    setIsOpen(false);
+    setShowForm(false);
     form.reset();
     toast({
       title: "تم حجز الموعد",
@@ -129,7 +122,6 @@ export default function Appointments() {
     toast({ description: "تم تحديث حالة الموعد" });
   };
 
-  // Sort appointments by date
   const sortedAppointments = [...appointments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const getAppointmentInfo = (appointmentId: string) => {
@@ -191,17 +183,23 @@ export default function Appointments() {
 
         <TabsContent value="appointments" className="space-y-6">
           <div className="flex items-center justify-end">
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2" data-testid="button-new-appointment">
-                  <Plus className="w-4 h-4" />
-                  موعد جديد
+            {!showForm && (
+              <Button className="gap-2" onClick={() => setShowForm(true)} data-testid="button-new-appointment">
+                <Plus className="w-4 h-4" />
+                موعد جديد
+              </Button>
+            )}
+          </div>
+
+          {showForm && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="text-lg">حجز موعد جديد</CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => { setShowForm(false); form.reset(); }} data-testid="button-close-form">
+                  <X className="w-4 h-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>حجز موعد جديد</DialogTitle>
-                </DialogHeader>
+              </CardHeader>
+              <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField
@@ -292,14 +290,15 @@ export default function Appointments() {
                         </FormItem>
                       )}
                     />
-                    <div className="flex justify-end pt-4">
+                    <div className="flex gap-3 pt-4">
                       <Button type="submit" data-testid="button-save-appointment">حفظ الموعد</Button>
+                      <Button type="button" variant="outline" onClick={() => { setShowForm(false); form.reset(); }} data-testid="button-cancel-appointment">إلغاء</Button>
                     </div>
                   </form>
                 </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="rounded-md border bg-card">
             <Table>

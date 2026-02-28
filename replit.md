@@ -176,9 +176,10 @@ Preferred communication style: Simple, everyday language.
 - Breadcrumb navigation
 - Improved login page with visual branding
 - Improved dashboard with financial summary card and today's appointments
-- Visits page: full-page inline forms instead of popup dialogs (ViewMode state machine: list/new/edit/detail/payment)
+- All pages use inline forms instead of popup dialogs (patients, appointments, services, users, finance, visits)
 - Card-based expandable visit list for mobile responsiveness
-- Payment/amount fields default to empty with placeholder text instead of 0
+- All numeric fields default to empty with placeholder text instead of 0
+- Visit notes field removed from forms, detail view, and card list
 - 12 realistic seed visits with tooth data and varied payment statuses
 
 ## Validation & Security

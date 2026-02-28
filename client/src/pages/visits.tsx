@@ -14,7 +14,6 @@ import { ToothSelector, type ToothSelectionMode } from "@/components/tooth-selec
 import { Badge } from "@/components/ui/badge";
 import { PatientSearch } from "@/components/patient-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -30,7 +29,6 @@ const visitSchema = z.object({
     jawType: z.string().optional(),
   })).min(1, "يجب إضافة خدمة واحدة على الأقل"),
   paidAmount: z.coerce.number().min(0, "المبلغ المدفوع لا يمكن أن يكون سالباً").optional(),
-  notes: z.string().optional(),
 });
 
 type ViewMode = "list" | "new" | "edit" | "detail" | "payment";
@@ -53,9 +51,8 @@ export default function Visits() {
       patientId: "",
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
-      items: [{ serviceId: "", price: 0, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
+      items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
-      notes: "",
     },
   });
 
@@ -70,9 +67,8 @@ export default function Visits() {
       patientId: "",
       doctorName: "",
       date: "",
-      items: [{ serviceId: "", price: 0, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
+      items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
-      notes: "",
     },
   });
 
@@ -94,9 +90,8 @@ export default function Visits() {
       patientId: "",
       doctorName: "د. سامي",
       date: format(new Date(), "yyyy-MM-dd"),
-      items: [{ serviceId: "", price: 0, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
+      items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
-      notes: "",
     });
   }
 
@@ -146,7 +141,6 @@ export default function Visits() {
         jawType: item.jawType || "single_tooth",
       })),
       paidAmount: Number(visit.paidAmount),
-      notes: visit.notes || "",
     });
     setViewMode("edit");
   };
@@ -174,7 +168,6 @@ export default function Visits() {
     updateVisit(selectedVisit.id, {
       doctorName: values.doctorName,
       date: values.date,
-      notes: values.notes,
       totalAmount: editTotalAmount,
       items: editItemsWithTeeth,
     } as any);
@@ -372,7 +365,7 @@ export default function Visits() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-lg">الخدمات المقدمة</CardTitle>
-                  <Button type="button" variant="outline" size="sm" onClick={() => append({ serviceId: "", price: 0, quantity: 1, toothNumbers: [], jawType: "single_tooth" })} data-testid="button-add-service">
+                  <Button type="button" variant="outline" size="sm" onClick={() => append({ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" })} data-testid="button-add-service">
                     <Plus className="w-3 h-3 ml-1" />
                     إضافة خدمة
                   </Button>
@@ -486,7 +479,7 @@ export default function Visits() {
 
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">الدفع والملاحظات</CardTitle>
+                <CardTitle className="text-lg">الدفع</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center text-lg font-bold p-3 bg-primary/5 rounded-lg">
@@ -521,20 +514,6 @@ export default function Visits() {
                     {Math.max(0, totalAmount - (form.watch('paidAmount') || 0))} ر.س
                   </span>
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ملاحظات</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="ملاحظات إضافية..." {...field} className="resize-none" rows={3} data-testid="input-visit-notes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <div className="flex gap-3 pt-2">
                   <Button type="submit" className="flex-1" data-testid="button-save-visit">حفظ وإنهاء الزيارة</Button>
@@ -621,7 +600,7 @@ export default function Visits() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-lg">الخدمات المقدمة</CardTitle>
-                  <Button type="button" variant="outline" size="sm" onClick={() => editAppend({ serviceId: "", price: 0, quantity: 1, toothNumbers: [], jawType: "single_tooth" })} data-testid="edit-button-add-service">
+                  <Button type="button" variant="outline" size="sm" onClick={() => editAppend({ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" })} data-testid="edit-button-add-service">
                     <Plus className="w-3 h-3 ml-1" />
                     إضافة خدمة
                   </Button>
@@ -753,20 +732,6 @@ export default function Visits() {
                   </span>
                 </div>
 
-                <FormField
-                  control={editForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ملاحظات</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="ملاحظات إضافية..." {...field} className="resize-none" rows={3} data-testid="edit-input-visit-notes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <div className="flex gap-3 pt-2">
                   <Button type="submit" className="flex-1" data-testid="button-save-edit-visit">حفظ التعديلات</Button>
                   <Button type="button" variant="outline" onClick={resetAndGoToList}>إلغاء</Button>
@@ -872,12 +837,6 @@ export default function Visits() {
               </div>
             )}
 
-            {selectedVisit.notes && (
-              <div className="text-sm pt-2 border-t">
-                <span className="text-muted-foreground">ملاحظات: </span>
-                <span data-testid="text-detail-notes">{selectedVisit.notes}</span>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -1116,12 +1075,6 @@ export default function Visits() {
                           <div className="font-bold text-red-600">{remaining > 0 ? remaining : 0} ر.س</div>
                         </div>
                       </div>
-
-                      {visit.notes && (
-                        <div className="text-sm text-muted-foreground">
-                          ملاحظات: {visit.notes}
-                        </div>
-                      )}
 
                       <div className="flex gap-2 flex-wrap">
                         <Button
