@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS v4 with custom theme variables and RTL support
 - **Forms**: React Hook Form with Zod validation
 - **Charts**: Recharts for financial visualizations
-- **Export**: xlsx for Excel, jspdf + jspdf-autotable for PDF
+- **Export**: exceljs for Excel, jspdf + jspdf-autotable for PDF
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript

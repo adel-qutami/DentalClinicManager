@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, getMonth, getYear, isSameDay, isSameMonth, isSameYear, startOfMonth, endOfMonth, eachDayOfInterval, differenceInYears } from "date-fns";
 import { ar } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -302,10 +302,12 @@ export default function Finance() {
     return selectedYear;
   };
 
-  const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
+  const exportToExcel = async () => {
+    const wb = new ExcelJS.Workbook();
 
-    const summaryData = [
+    const summaryWs = wb.addWorksheet('الملخص');
+    summaryWs.columns = [{ width: 30 }, { width: 20 }];
+    summaryWs.addRows([
       ['التقرير المالي - ' + getReportPeriodLabel()],
       [],
       ['البند', 'المبلغ (ر.س)'],
@@ -318,12 +320,11 @@ export default function Finance() {
       ['المتبقي', stats.netProfit - stats.withdrawals],
       [],
       ['عدد الزيارات', stats.visitsCount],
-    ];
-    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-    summaryWs['!cols'] = [{ wch: 30 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, summaryWs, 'الملخص');
+    ]);
 
-    const visitsSheetData = [
+    const visitsWs = wb.addWorksheet('الزيارات');
+    visitsWs.columns = [{ width: 12 }, { width: 20 }, { width: 15 }, { width: 15 }, { width: 30 }, { width: 30 }];
+    visitsWs.addRows([
       ['التاريخ', 'الطبيب', 'المبلغ الإجمالي', 'المبلغ المدفوع', 'التشخيص', 'ملاحظات'],
       ...filteredData.visits.map(v => [
         v.date,
@@ -333,12 +334,11 @@ export default function Finance() {
         v.diagnosis || '',
         v.notes || '',
       ]),
-    ];
-    const visitsWs = XLSX.utils.aoa_to_sheet(visitsSheetData);
-    visitsWs['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 30 }];
-    XLSX.utils.book_append_sheet(wb, visitsWs, 'الزيارات');
+    ]);
 
-    const expensesSheetData = [
+    const expensesWs = wb.addWorksheet('المصروفات');
+    expensesWs.columns = [{ width: 12 }, { width: 12 }, { width: 25 }, { width: 15 }, { width: 15 }, { width: 30 }];
+    expensesWs.addRows([
       ['التاريخ', 'النوع', 'البند', 'التصنيف', 'المبلغ', 'ملاحظات'],
       ...filteredData.expenses.map(e => [
         e.date,
@@ -348,12 +348,16 @@ export default function Finance() {
         Number(e.amount),
         e.notes || '',
       ]),
-    ];
-    const expensesWs = XLSX.utils.aoa_to_sheet(expensesSheetData);
-    expensesWs['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
-    XLSX.utils.book_append_sheet(wb, expensesWs, 'المصروفات');
+    ]);
 
-    XLSX.writeFile(wb, `تقرير_مالي_${getReportPeriodLabel()}.xlsx`);
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `تقرير_مالي_${getReportPeriodLabel()}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast({ title: 'تم التصدير', description: 'تم تصدير التقرير كملف Excel بنجاح' });
   };
 
