@@ -36,7 +36,7 @@ import { ar } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -382,7 +382,7 @@ export default function Finance() {
     ]);
 
     if (visitsTableData.length > 0) {
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 75,
         head: [['Date', 'Doctor', 'Total', 'Paid', 'Diagnosis']],
         body: visitsTableData,
@@ -402,7 +402,7 @@ export default function Finance() {
 
     if (expensesTableData.length > 0) {
       const finalY = visitsTableData.length > 0 ? (doc as any).lastAutoTable.finalY + 15 : 75;
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: finalY,
         head: [['Date', 'Type', 'Item', 'Category', 'Amount']],
         body: expensesTableData,

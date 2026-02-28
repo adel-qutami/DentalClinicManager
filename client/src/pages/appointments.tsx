@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PatientSearch } from "@/components/patient-search";
 import {
   Table,
   TableBody,
@@ -209,18 +210,13 @@ export default function Appointments() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>المريض</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-patient">
-                                <SelectValue placeholder="اختر المريض" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {patients.map(p => (
-                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <PatientSearch
+                              patients={patients || []}
+                              value={field.value}
+                              onSelect={field.onChange}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

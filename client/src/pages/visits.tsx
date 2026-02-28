@@ -27,6 +27,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ToothSelector, type ToothSelectionMode } from "@/components/tooth-selector";
 import { Badge } from "@/components/ui/badge";
+import { PatientSearch } from "@/components/patient-search";
+
+const ITEMS_PER_PAGE = 10;
 
 const visitSchema = z.object({
   patientId: z.string().min(1, "المريض مطلوب"),
@@ -263,13 +266,25 @@ export default function Visits() {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   if (loading) {
-    return <div className="p-8 text-center">جاري التحميل...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="h-10 w-48 bg-muted animate-pulse rounded-lg" />
+        <div className="h-12 w-full bg-muted animate-pulse rounded-lg" />
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const filteredVisits = (visits || []).filter(v => {
     const patient = (patients || []).find(p => p.id === v.patientId);
-    const matchesSearch = patient?.name.includes(search) || false;
+    const matchesSearch = !search || (patient?.name.includes(search) || patient?.phone.includes(search) || false);
     
     if (toothFilter) {
       const hasMatchingTooth = v.items.some(item => 
@@ -280,6 +295,12 @@ export default function Visits() {
     
     return matchesSearch;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const totalPages = Math.ceil(filteredVisits.length / ITEMS_PER_PAGE);
+  const paginatedVisits = filteredVisits.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-8">
@@ -301,25 +322,20 @@ export default function Visits() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="patientId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>المريض</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-patient">
-                              <SelectValue placeholder="اختر المريض" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {(patients || []).map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <PatientSearch
+                            patients={patients || []}
+                            value={field.value}
+                            onSelect={field.onChange}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -875,7 +891,7 @@ export default function Visits() {
           <Input 
             placeholder="بحث باسم المريض..." 
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className="border-none shadow-none focus-visible:ring-0"
             data-testid="input-search-visits"
           />
@@ -885,12 +901,12 @@ export default function Visits() {
           <Input
             placeholder="رقم السن (مثال: 11)"
             value={toothFilter}
-            onChange={(e) => setToothFilter(e.target.value)}
+            onChange={(e) => { setToothFilter(e.target.value); setCurrentPage(1); }}
             className="border-none shadow-none focus-visible:ring-0 w-36"
             data-testid="input-tooth-filter"
           />
           {toothFilter && (
-            <Button variant="ghost" size="icon" onClick={() => setToothFilter("")} data-testid="button-clear-tooth-filter">
+            <Button variant="ghost" size="icon" onClick={() => { setToothFilter(""); setCurrentPage(1); }} data-testid="button-clear-tooth-filter">
               <X className="w-3 h-3" />
             </Button>
           )}
@@ -928,7 +944,7 @@ export default function Visits() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredVisits.map((visit) => {
+              paginatedVisits.map((visit) => {
                 const patient = patients.find(p => p.id === visit.patientId);
                 const remaining = Number(visit.totalAmount) - Number(visit.paidAmount);
                 const allTeeth = visit.items
@@ -1019,6 +1035,55 @@ export default function Visits() {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 pt-2" data-testid="visits-pagination">
+          <p className="text-sm text-muted-foreground">
+            عرض {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredVisits.length)} من {filteredVisits.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              data-testid="button-first-page"
+            >
+              الأولى
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+              data-testid="button-prev-page"
+            >
+              السابقة
+            </Button>
+            <span className="text-sm font-medium px-3">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => p + 1)}
+              data-testid="button-next-page"
+            >
+              التالية
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              data-testid="button-last-page"
+            >
+              الأخيرة
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

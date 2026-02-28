@@ -17,9 +17,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, User, Phone, FileText } from "lucide-react";
+import { Plus, Search, User, Phone } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,10 +33,10 @@ const patientSchema = z.object({
   notes: z.string().optional(),
 });
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 12;
 
 export default function Patients() {
-  const { patients, addPatient } = useStore();
+  const { patients, addPatient, loading } = useStore();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,16 +73,29 @@ export default function Patients() {
     });
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-10 w-48 bg-muted animate-pulse rounded-lg" />
+        <div className="grid gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">المرضى</h2>
-          <p className="text-muted-foreground mt-2">إدارة ملفات المرضى وتاريخهم المرضي.</p>
+          <h2 className="text-2xl font-bold tracking-tight" data-testid="text-page-title">المرضى</h2>
+          <p className="text-muted-foreground text-sm mt-1">إدارة ملفات المرضى وتاريخهم المرضي.</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" data-testid="button-add-patient">
               <Plus className="w-4 h-4" />
               مريض جديد
             </Button>
@@ -101,7 +113,7 @@ export default function Patients() {
                     <FormItem>
                       <FormLabel>الاسم الكامل</FormLabel>
                       <FormControl>
-                        <Input placeholder="الاسم" {...field} />
+                        <Input placeholder="الاسم" {...field} data-testid="input-patient-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -115,7 +127,7 @@ export default function Patients() {
                       <FormItem>
                         <FormLabel>رقم الهاتف</FormLabel>
                         <FormControl>
-                          <Input placeholder="05xxxxxxxx" {...field} />
+                          <Input placeholder="05xxxxxxxx" {...field} data-testid="input-patient-phone" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -128,7 +140,7 @@ export default function Patients() {
                       <FormItem>
                         <FormLabel>العمر</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="30" {...field} />
+                          <Input type="number" placeholder="30" {...field} data-testid="input-patient-age" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -143,7 +155,7 @@ export default function Patients() {
                       <FormLabel>الجنس</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger data-testid="select-patient-gender">
                             <SelectValue placeholder="اختر الجنس" />
                           </SelectTrigger>
                         </FormControl>
@@ -163,14 +175,14 @@ export default function Patients() {
                     <FormItem>
                       <FormLabel>ملاحظات طبية</FormLabel>
                       <FormControl>
-                        <Input placeholder="حساسية، أمراض مزمنة..." {...field} />
+                        <Input placeholder="حساسية، أمراض مزمنة..." {...field} data-testid="input-patient-notes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className="flex justify-end pt-4">
-                  <Button type="submit">حفظ الملف</Button>
+                  <Button type="submit" data-testid="button-save-patient">حفظ الملف</Button>
                 </div>
               </form>
             </Form>
@@ -183,50 +195,76 @@ export default function Patients() {
         <Input 
           placeholder="بحث بالاسم أو الهاتف..." 
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="border-none shadow-none focus-visible:ring-0"
+          data-testid="input-search-patients"
         />
       </div>
 
-      <div className="rounded-md border bg-card">
+      <div className="rounded-lg border bg-card overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="text-right">الاسم</TableHead>
-              <TableHead className="text-right">رقم الهاتف</TableHead>
-              <TableHead className="text-right">العمر / الجنس</TableHead>
-              <TableHead className="text-right">تاريخ التسجيل</TableHead>
-              <TableHead className="text-right">ملاحظات</TableHead>
+            <TableRow className="bg-muted/40">
+              <TableHead className="text-right font-semibold">المريض</TableHead>
+              <TableHead className="text-right font-semibold">رقم الهاتف</TableHead>
+              <TableHead className="text-right font-semibold">العمر / الجنس</TableHead>
+              <TableHead className="text-right font-semibold">تاريخ التسجيل</TableHead>
+              <TableHead className="text-right font-semibold">ملاحظات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredPatients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  لا توجد نتائج
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <User className="w-8 h-8 text-muted-foreground/50" />
+                    <span>لا توجد نتائج</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredPatients.map((patient) => (
-                <TableRow key={patient.id}>
+              paginatedPatients.map((patient) => (
+                <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-patient-${patient.id}`}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
                         {patient.name.charAt(0)}
                       </div>
-                      {patient.name}
+                      <span>{patient.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{patient.phone}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5" />
+                      <span dir="ltr">{patient.phone}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{patient.age} سنة - {patient.gender === 'male' ? 'ذكر' : 'أنثى'}</TableCell>
-                  <TableCell>{patient.createdAt}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{patient.notes || '-'}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('ar-SA') : '-'}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{patient.notes || '-'}</TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4" data-testid="patients-pagination">
+          <p className="text-sm text-muted-foreground">
+            عرض {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredPatients.length)} من {filteredPatients.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} data-testid="button-prev-page">
+              السابقة
+            </Button>
+            <span className="text-sm font-medium px-3">{currentPage} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} data-testid="button-next-page">
+              التالية
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

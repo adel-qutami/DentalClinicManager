@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -7,14 +8,29 @@ import Layout from "@/components/layout";
 import { StoreProvider, useStore } from "@/lib/store";
 import Login from "@/pages/login";
 
-import Dashboard from "@/pages/dashboard";
-import Patients from "@/pages/patients";
-import Appointments from "@/pages/appointments";
-import Visits from "@/pages/visits";
-import Finance from "@/pages/finance";
-import Services from "@/pages/services";
-import UsersPage from "@/pages/users";
-import AuditLog from "@/pages/audit-log";
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Patients = lazy(() => import("@/pages/patients"));
+const Appointments = lazy(() => import("@/pages/appointments"));
+const Visits = lazy(() => import("@/pages/visits"));
+const Finance = lazy(() => import("@/pages/finance"));
+const Services = lazy(() => import("@/pages/services"));
+const UsersPage = lazy(() => import("@/pages/users"));
+const AuditLog = lazy(() => import("@/pages/audit-log"));
+
+function PageLoader() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-48 bg-muted rounded-lg" />
+      <div className="h-4 w-72 bg-muted rounded" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-28 bg-muted rounded-xl" />
+        ))}
+      </div>
+      <div className="h-64 bg-muted rounded-xl" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ component: Component, permission }: { component: React.ComponentType; permission?: string }) {
   const { can } = useStore();
@@ -28,14 +44,24 @@ function ProtectedRoute({ component: Component, permission }: { component: React
       </div>
     );
   }
-  return <Component />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Component />
+    </Suspense>
+  );
 }
 
 function Router() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/">
+          {() => (
+            <Suspense fallback={<PageLoader />}>
+              <Dashboard />
+            </Suspense>
+          )}
+        </Route>
         <Route path="/patients">
           {() => <ProtectedRoute component={Patients} permission="patients_view" />}
         </Route>
@@ -69,7 +95,10 @@ function AppContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">جاري التحميل...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">جاري التحميل...</p>
+        </div>
       </div>
     );
   }
