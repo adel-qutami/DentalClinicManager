@@ -8,6 +8,7 @@ import {
   insertVisitSchema,
   insertExpenseSchema,
   insertVisitItemSchema,
+  insertExpenseCategorySchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
@@ -556,6 +557,44 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(400).json({ message: "فشل في حذف المصروف" });
+    }
+  });
+
+  app.get("/api/expense-categories", requireAuth, async (req, res) => {
+    try {
+      const categories = await storage.getAllExpenseCategories();
+      res.json(categories);
+    } catch (error) {
+      res.status(500).json({ message: "فشل في جلب التصنيفات" });
+    }
+  });
+
+  app.post("/api/expense-categories", requireAuth, requirePermission("finance_manage"), async (req, res) => {
+    try {
+      const data = insertExpenseCategorySchema.parse(req.body);
+      const cat = await storage.createExpenseCategory(data);
+      res.status(201).json(cat);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.patch("/api/expense-categories/:id", requireAuth, requirePermission("finance_manage"), async (req, res) => {
+    try {
+      const data = insertExpenseCategorySchema.partial().parse(req.body);
+      const cat = await storage.updateExpenseCategory(req.params.id, data);
+      res.json(cat);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.delete("/api/expense-categories/:id", requireAuth, requirePermission("finance_manage"), async (req, res) => {
+    try {
+      await storage.deleteExpenseCategory(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(400).json({ message: "فشل في حذف التصنيف" });
     }
   });
 

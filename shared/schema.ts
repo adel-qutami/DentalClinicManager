@@ -229,6 +229,23 @@ export const insertExpenseSchema = createInsertSchema(expenses)
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
 
+export const expenseCategories = pgTable("expense_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  type: text("type").notNull().default("operational"),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertExpenseCategorySchema = createInsertSchema(expenseCategories)
+  .pick({ name: true, type: true })
+  .extend({
+    name: z.string().min(2, "اسم التصنيف مطلوب"),
+    type: z.enum(["operational", "fixed"]),
+  });
+
+export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id"),

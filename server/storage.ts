@@ -8,6 +8,7 @@ import {
   visitItems,
   payments,
   expenses,
+  expenseCategories,
   auditLogs,
   type User,
   type InsertUser,
@@ -25,6 +26,8 @@ import {
   type InsertPayment,
   type Expense,
   type InsertExpense,
+  type ExpenseCategory,
+  type InsertExpenseCategory,
   type AuditLog,
   type InsertAuditLog,
 } from "@shared/schema";
@@ -72,6 +75,11 @@ export interface IStorage {
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense>;
   deleteExpense(id: string): Promise<void>;
+
+  getAllExpenseCategories(): Promise<ExpenseCategory[]>;
+  createExpenseCategory(cat: InsertExpenseCategory): Promise<ExpenseCategory>;
+  updateExpenseCategory(id: string, cat: Partial<InsertExpenseCategory>): Promise<ExpenseCategory>;
+  deleteExpenseCategory(id: string): Promise<void>;
 
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
@@ -396,6 +404,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExpense(id: string): Promise<void> {
     await db.delete(expenses).where(eq(expenses.id, id));
+  }
+
+  async getAllExpenseCategories(): Promise<ExpenseCategory[]> {
+    return await db.select().from(expenseCategories).orderBy(expenseCategories.name);
+  }
+
+  async createExpenseCategory(cat: InsertExpenseCategory): Promise<ExpenseCategory> {
+    const id = randomUUID();
+    const result = await db.insert(expenseCategories).values({ ...cat, id }).returning();
+    return result[0];
+  }
+
+  async updateExpenseCategory(id: string, cat: Partial<InsertExpenseCategory>): Promise<ExpenseCategory> {
+    const result = await db.update(expenseCategories).set(cat).where(eq(expenseCategories.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteExpenseCategory(id: string): Promise<void> {
+    await db.delete(expenseCategories).where(eq(expenseCategories.id, id));
   }
 
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {

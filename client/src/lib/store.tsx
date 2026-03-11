@@ -72,6 +72,12 @@ export interface Expense {
   notes?: string;
 }
 
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  type: 'operational' | 'fixed';
+}
+
 interface StoreContextType {
   user: AuthUser | null;
   authLoading: boolean;
@@ -85,6 +91,7 @@ interface StoreContextType {
   appointments: Appointment[];
   visits: Visit[];
   expenses: Expense[];
+  expenseCategories: ExpenseCategory[];
   loading: boolean;
   
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
@@ -111,6 +118,10 @@ interface StoreContextType {
   getVisitPayments: (visitId: string) => Promise<Payment[]>;
   getPatient: (id: string) => Patient | undefined;
   getService: (id: string) => Service | undefined;
+
+  addExpenseCategory: (cat: Omit<ExpenseCategory, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateExpenseCategory: (id: string, cat: Partial<ExpenseCategory>) => Promise<{ success: boolean; error?: string }>;
+  deleteExpenseCategory: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -125,6 +136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -148,12 +160,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const fetchOpts = { credentials: 'include' as RequestCredentials };
-      const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes] = await Promise.all([
+      const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes, catRes] = await Promise.all([
         fetch(`${API_BASE}/patients`, fetchOpts),
         fetch(`${API_BASE}/services`, fetchOpts),
         fetch(`${API_BASE}/appointments`, fetchOpts),
         fetch(`${API_BASE}/visits`, fetchOpts),
         fetch(`${API_BASE}/expenses`, fetchOpts),
+        fetch(`${API_BASE}/expense-categories`, fetchOpts),
       ]);
 
       if (patientsRes.ok) setPatients(await patientsRes.json());
@@ -161,6 +174,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (appointmentsRes.ok) setAppointments(await appointmentsRes.json());
       if (visitsRes.ok) setVisits(await visitsRes.json());
       if (expensesRes.ok) setExpenses(await expensesRes.json());
+      if (catRes.ok) setExpenseCategories(await catRes.json());
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -582,16 +596,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const getPatient = (id: string) => patients.find(p => p.id === id);
   const getService = (id: string) => services.find(s => s.id === id);
 
+  const addExpenseCategory = async (cat: Omit<ExpenseCategory, 'id'>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/expense-categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(cat) });
+      if (res.ok) { const newCat = await res.json(); setExpenseCategories(prev => [...prev, newCat]); return { success: true }; }
+      const data = await res.json(); return { success: false, error: data.message };
+    } catch { return { success: false, error: 'فشل الاتصال' }; }
+  };
+
+  const updateExpenseCategory = async (id: string, cat: Partial<ExpenseCategory>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/expense-categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(cat) });
+      if (res.ok) { const updated = await res.json(); setExpenseCategories(prev => prev.map(c => c.id === id ? updated : c)); return { success: true }; }
+      const data = await res.json(); return { success: false, error: data.message };
+    } catch { return { success: false, error: 'فشل الاتصال' }; }
+  };
+
+  const deleteExpenseCategory = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/expense-categories/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) { setExpenseCategories(prev => prev.filter(c => c.id !== id)); return { success: true }; }
+      return { success: false, error: 'فشل الحذف' };
+    } catch { return { success: false, error: 'فشل الاتصال' }; }
+  };
+
   return (
     <StoreContext.Provider value={{
       user, authLoading, login, logout, register, can,
-      patients, services, appointments, visits, expenses, loading,
+      patients, services, appointments, visits, expenses, expenseCategories, loading,
       addPatient, updatePatient, deletePatient,
       addAppointment, updateAppointment, deleteAppointment,
       addVisit, updateVisit, deleteVisit,
       addExpense, updateExpense, deleteExpense,
       addService, updateService, deleteService,
-      addPayment, getVisitPayments, getPatient, getService
+      addPayment, getVisitPayments, getPatient, getService,
+      addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
     }}>
       {children}
     </StoreContext.Provider>

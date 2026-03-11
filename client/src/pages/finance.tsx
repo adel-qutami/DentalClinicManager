@@ -40,17 +40,17 @@ const expenseSchema = z.object({
   notes: z.string().optional(),
 });
 
-const EXPENSE_CATEGORIES = [
-  { value: "مشتريات", label: "مشتريات", icon: ShoppingCart },
-  { value: "فواتير", label: "فواتير", icon: Zap },
-  { value: "رواتب", label: "رواتب", icon: Users },
-  { value: "إيجار", label: "إيجار", icon: Building2 },
-  { value: "صيانة", label: "صيانة", icon: Receipt },
-  { value: "أخرى", label: "أخرى", icon: CircleDollarSign },
-];
+const categorySchema = z.object({
+  name: z.string().min(2, "اسم التصنيف مطلوب"),
+  type: z.enum(['operational', 'fixed']),
+});
 
 export default function Finance() {
-  const { expenses, visits, appointments, patients, services, addExpense, updateExpense, deleteExpense } = useStore();
+  const {
+    expenses, visits, appointments, patients, services, expenseCategories,
+    addExpense, updateExpense, deleteExpense,
+    addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
+  } = useStore();
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
@@ -59,6 +59,9 @@ export default function Finance() {
   const [expenseFilter, setExpenseFilter] = useState<string>('all');
   const [expenseSearch, setExpenseSearch] = useState('');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
@@ -81,6 +84,16 @@ export default function Finance() {
   const editForm = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: { title: "", amount: undefined as any, date: "", category: "", type: "operational", notes: "" },
+  });
+
+  const categoryForm = useForm<z.infer<typeof categorySchema>>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { name: "", type: "operational" },
+  });
+
+  const editCategoryForm = useForm<z.infer<typeof categorySchema>>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { name: "", type: "operational" },
   });
 
   async function confirmDeleteExpense() {
@@ -153,6 +166,39 @@ export default function Finance() {
     } else {
       toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
     }
+  }
+
+  async function onCategorySubmit(values: z.infer<typeof categorySchema>) {
+    const result = await addExpenseCategory(values);
+    if (result.success) {
+      setShowCategoryForm(false);
+      categoryForm.reset({ name: "", type: "operational" });
+      toast({ title: "تم الإضافة", description: "تم إضافة التصنيف بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+  }
+
+  async function onEditCategorySubmit(values: z.infer<typeof categorySchema>) {
+    if (!editingCategoryId) return;
+    const result = await updateExpenseCategory(editingCategoryId, values);
+    if (result.success) {
+      setEditingCategoryId(null);
+      toast({ title: "تم التحديث", description: "تم تعديل التصنيف بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+  }
+
+  async function confirmDeleteCategory() {
+    if (!deleteCategoryId) return;
+    const result = await deleteExpenseCategory(deleteCategoryId);
+    if (result.success) {
+      toast({ title: "تم الحذف", description: "تم حذف التصنيف" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+    setDeleteCategoryId(null);
   }
 
   const filteredData = useMemo(() => {
@@ -395,7 +441,7 @@ export default function Finance() {
       </div>
 
       <Tabs defaultValue="reports" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="reports" className="gap-2" data-testid="tab-reports">
             <BarChart3 className="w-4 h-4" />
             التقارير
@@ -407,6 +453,10 @@ export default function Finance() {
           <TabsTrigger value="withdrawals" className="gap-2" data-testid="tab-withdrawals">
             <ArrowDownCircle className="w-4 h-4" />
             السحبيات
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="gap-2" data-testid="tab-categories">
+            <CircleDollarSign className="w-4 h-4" />
+            التصنيفات
           </TabsTrigger>
         </TabsList>
 
@@ -831,7 +881,7 @@ export default function Finance() {
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
-                            {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                            {expenseCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}{expenseCategories.length === 0 && <SelectItem value="أخرى">أخرى</SelectItem>}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -917,7 +967,7 @@ export default function Finance() {
                               )} />
                               <FormField control={editForm.control} name="category" render={({ field }) => (
                                 <FormItem><FormLabel className="text-xs">التصنيف</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select>
+                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{expenseCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}{expenseCategories.length === 0 && <SelectItem value="أخرى">أخرى</SelectItem>}</SelectContent></Select>
                                 </FormItem>
                               )} />
                               <FormField control={editForm.control} name="amount" render={({ field }) => (
@@ -1148,6 +1198,143 @@ export default function Finance() {
                 <span className="text-sm font-bold text-amber-600 dark:text-amber-400">الإجمالي: {withdrawalSummary.total.toLocaleString()} ر.س</span>
               </div>
             )}
+          </div>
+        </TabsContent>
+
+        {/* ═══════════════════ CATEGORIES TAB ═══════════════════ */}
+        <TabsContent value="categories" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">إدارة تصنيفات المصروفات</h3>
+            <Button size="sm" className="gap-1.5" onClick={() => { setShowCategoryForm(!showCategoryForm); categoryForm.reset({ name: "", type: "operational" }); }} data-testid="btn-add-category">
+              {showCategoryForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {showCategoryForm ? "إلغاء" : "إضافة تصنيف"}
+            </Button>
+          </div>
+
+          {showCategoryForm && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4">
+                <Form {...categoryForm}>
+                  <form onSubmit={categoryForm.handleSubmit(onCategorySubmit)} className="grid gap-4 grid-cols-1 sm:grid-cols-3 items-end">
+                    <FormField control={categoryForm.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>اسم التصنيف</FormLabel>
+                        <FormControl><Input {...field} placeholder="مثال: مشتريات" data-testid="input-category-name" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={categoryForm.control} name="type" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>النوع</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger data-testid="select-category-type"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="operational">تشغيلي</SelectItem>
+                            <SelectItem value="fixed">ثابت</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <Button type="submit" className="gap-1.5" data-testid="btn-submit-category"><Plus className="w-4 h-4" />إضافة</Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="text-right">اسم التصنيف</TableHead>
+                  <TableHead className="text-right">النوع</TableHead>
+                  <TableHead className="text-right w-[100px]">عدد المصروفات</TableHead>
+                  <TableHead className="text-left w-[120px]">إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenseCategories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-16 text-muted-foreground">
+                      <CircleDollarSign className="w-10 h-10 mx-auto mb-2 text-muted-foreground/20" />
+                      <p className="text-sm">لا توجد تصنيفات - أضف تصنيفاً جديداً</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  expenseCategories.map(cat => {
+                    const catExpenseCount = expenses.filter(e => e.category === cat.name).length;
+                    return editingCategoryId === cat.id ? (
+                      <TableRow key={cat.id} className="bg-blue-50/50 dark:bg-blue-950/10">
+                        <TableCell colSpan={4}>
+                          <Form {...editCategoryForm}>
+                            <form onSubmit={editCategoryForm.handleSubmit(onEditCategorySubmit)} className="grid gap-3 grid-cols-3 items-end py-2">
+                              <FormField control={editCategoryForm.control} name="name" render={({ field }) => (
+                                <FormItem><FormLabel className="text-xs">اسم التصنيف</FormLabel><FormControl><Input {...field} className="h-8 text-xs" data-testid="input-edit-category-name" /></FormControl></FormItem>
+                              )} />
+                              <FormField control={editCategoryForm.control} name="type" render={({ field }) => (
+                                <FormItem><FormLabel className="text-xs">النوع</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="operational">تشغيلي</SelectItem>
+                                      <SelectItem value="fixed">ثابت</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                              <div className="flex gap-1">
+                                <Button type="submit" size="sm" className="h-8 px-3 text-xs gap-1"><Check className="w-3 h-3" />حفظ</Button>
+                                <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setEditingCategoryId(null)}>إلغاء</Button>
+                              </div>
+                            </form>
+                          </Form>
+                        </TableCell>
+                      </TableRow>
+                    ) : deleteCategoryId === cat.id ? (
+                      <TableRow key={cat.id}>
+                        <TableCell colSpan={4}>
+                          <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/30">
+                            <CardContent className="flex items-center justify-between py-3">
+                              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                <AlertCircle className="w-4 h-4" />
+                                <span className="text-sm font-medium">هل تريد حذف تصنيف "{cat.name}"؟{catExpenseCount > 0 && ` (مرتبط بـ ${catExpenseCount} مصروف)`}</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="destructive" className="h-7 px-3 text-xs" onClick={confirmDeleteCategory} data-testid="btn-confirm-delete-category">حذف</Button>
+                                <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={() => setDeleteCategoryId(null)}>إلغاء</Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <TableRow key={cat.id} className="group hover:bg-muted/30">
+                        <TableCell className="font-medium">{cat.name}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cat.type === 'fixed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+                            {cat.type === 'fixed' ? 'ثابت' : 'تشغيلي'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{catExpenseCount}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" data-testid={`btn-edit-category-${cat.id}`}
+                              onClick={() => { setEditingCategoryId(cat.id); editCategoryForm.reset({ name: cat.name, type: cat.type as 'operational' | 'fixed' }); }}>
+                              <Edit className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" data-testid={`btn-delete-category-${cat.id}`}
+                              onClick={() => setDeleteCategoryId(cat.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
         </TabsContent>
       </Tabs>
