@@ -35,13 +35,14 @@ type ViewMode = "list" | "new" | "edit" | "detail" | "payment";
 type PaymentFilter = "all" | "unpaid" | "paid";
 
 export default function Visits() {
-  const { visits, patients, services, loading, addVisit, updateVisit, addPayment, getVisitPayments, getService } = useStore();
+  const { visits, patients, services, loading, addVisit, updateVisit, deleteVisit, addPayment, getVisitPayments, getService } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
   const [newPaymentDate, setNewPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [visitPayments, setVisitPayments] = useState<Payment[]>([]);
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
+  const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -276,6 +277,17 @@ export default function Visits() {
         </div>
       </div>
     );
+  }
+
+  async function confirmDeleteVisit() {
+    if (!deleteVisitId) return;
+    const result = await deleteVisit(deleteVisitId);
+    if (result.success) {
+      toast({ title: "تم الحذف", description: "تم حذف الزيارة وجميع دفعاتها" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+    setDeleteVisitId(null);
   }
 
   const filteredVisits = (visits || []).filter(v => {
@@ -1067,6 +1079,24 @@ export default function Visits() {
         </Button>
       </div>
 
+      {deleteVisitId && (
+        <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
+          <CardContent className="flex items-center justify-between gap-4 py-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <div>
+                <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذه الزيارة؟</p>
+                <p className="text-sm text-red-700 dark:text-red-400">سيتم حذف جميع الدفعات المرتبطة بها</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="destructive" size="sm" onClick={confirmDeleteVisit} data-testid="button-confirm-delete-visit">حذف</Button>
+              <Button variant="outline" size="sm" onClick={() => setDeleteVisitId(null)} data-testid="button-cancel-delete-visit">إلغاء</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {filteredVisits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <div className="text-6xl mb-4">🦷</div>
@@ -1082,7 +1112,7 @@ export default function Visits() {
             const remaining = Number(visit.totalAmount) - Number(visit.paidAmount);
 
             return (
-              <Card key={visit.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" data-testid={`card-visit-${visit.id}`}
+              <Card key={visit.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer group" data-testid={`card-visit-${visit.id}`}
                 onClick={() => {
                   setSelectedVisit(visit);
                   loadPayments(visit.id);
@@ -1110,11 +1140,16 @@ export default function Visits() {
                       </div>
                     </div>
 
-                    <div className="text-left shrink-0">
-                      <div className="font-bold text-lg" data-testid={`text-total-${visit.id}`}>{Number(visit.totalAmount)} ر.س</div>
-                      {remaining > 0 && (
-                        <div className="text-xs text-red-600">متبقي: {remaining} ر.س</div>
-                      )}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-left">
+                        <div className="font-bold text-lg" data-testid={`text-total-${visit.id}`}>{Number(visit.totalAmount)} ر.س</div>
+                        {remaining > 0 && (
+                          <div className="text-xs text-red-600">متبقي: {remaining} ر.س</div>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setDeleteVisitId(visit.id); }} data-testid={`button-delete-visit-${visit.id}`}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

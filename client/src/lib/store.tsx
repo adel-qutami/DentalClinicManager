@@ -97,6 +97,7 @@ interface StoreContextType {
   
   addVisit: (visit: Omit<Visit, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateVisit: (id: string, visit: Partial<Visit>) => Promise<{ success: boolean; error?: string }>;
+  deleteVisit: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<{ success: boolean; error?: string }>;
@@ -428,6 +429,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const deleteVisit = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/visits/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setVisits(prev => prev.filter(v => v.id !== id));
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل حذف الزيارة' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
   const updateExpense = async (id: string, data: Partial<Expense>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/expenses/${id}`, {
@@ -570,7 +588,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       patients, services, appointments, visits, expenses, loading,
       addPatient, updatePatient, deletePatient,
       addAppointment, updateAppointment, deleteAppointment,
-      addVisit, updateVisit,
+      addVisit, updateVisit, deleteVisit,
       addExpense, updateExpense, deleteExpense,
       addService, updateService, deleteService,
       addPayment, getVisitPayments, getPatient, getService

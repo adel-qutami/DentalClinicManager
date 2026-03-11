@@ -9,7 +9,6 @@ import {
   payments,
   expenses,
   auditLogs,
-  reminderLogs,
   type User,
   type InsertUser,
   type Patient,
@@ -28,8 +27,6 @@ import {
   type InsertExpense,
   type AuditLog,
   type InsertAuditLog,
-  type ReminderLog,
-  type InsertReminderLog,
 } from "@shared/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -79,9 +76,6 @@ export interface IStorage {
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
 
-  createReminderLog(log: InsertReminderLog): Promise<ReminderLog>;
-  getReminderLogs(): Promise<ReminderLog[]>;
-  updateReminderLog(id: string, data: Partial<InsertReminderLog>): Promise<ReminderLog>;
 
   getFinancialReport(filters: {
     startDate?: string;
@@ -159,14 +153,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePatient(id: string): Promise<void> {
-    const patientVisits = await db.select().from(visits).where(eq(visits.patientId, id));
-    if (patientVisits.length > 0) {
-      throw new Error("لا يمكن حذف مريض لديه زيارات مسجلة");
+    const patientVisits = await db.select({ id: visits.id }).from(visits).where(eq(visits.patientId, id));
+    for (const v of patientVisits) {
+      await db.delete(visitItems).where(eq(visitItems.visitId, v.id));
+      await db.delete(payments).where(eq(payments.visitId, v.id));
     }
-    const patientAppts = await db.select().from(appointments).where(eq(appointments.patientId, id));
-    if (patientAppts.length > 0) {
-      throw new Error("لا يمكن حذف مريض لديه مواعيد مسجلة");
-    }
+    await db.delete(visits).where(eq(visits.patientId, id));
+    await db.delete(appointments).where(eq(appointments.patientId, id));
     await db.delete(patients).where(eq(patients.id, id));
   }
 
@@ -342,10 +335,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteVisit(id: string): Promise<void> {
-    const existingPayments = await this.getPaymentsForVisit(id);
-    if (existingPayments.length > 0) {
-      throw new Error("Cannot delete visit with existing payments");
-    }
+    await db.delete(payments).where(eq(payments.visitId, id));
     await db.delete(visitItems).where(eq(visitItems.visitId, id));
     await db.delete(visits).where(eq(visits.id, id));
   }
@@ -433,27 +423,6 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async createReminderLog(log: InsertReminderLog): Promise<ReminderLog> {
-    const id = randomUUID();
-    const result = await db
-      .insert(reminderLogs)
-      .values({ ...log, id })
-      .returning();
-    return result[0];
-  }
-
-  async getReminderLogs(): Promise<ReminderLog[]> {
-    return await db.select().from(reminderLogs).orderBy(desc(reminderLogs.createdAt));
-  }
-
-  async updateReminderLog(id: string, data: Partial<InsertReminderLog>): Promise<ReminderLog> {
-    const result = await db
-      .update(reminderLogs)
-      .set(data)
-      .where(eq(reminderLogs.id, id))
-      .returning();
-    return result[0];
-  }
 
   async getFinancialReport(filters: {
     startDate?: string;

@@ -25,7 +25,6 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: express-session with role-based access control
 - **API Design**: RESTful endpoints under `/api` prefix
-- **Scheduler**: Daily appointment reminder job
 - **Build Process**: esbuild bundles server code, Vite bundles client code
 
 ### Data Storage
@@ -45,7 +44,6 @@ Preferred communication style: Simple, everyday language.
 - **Payments**: Payment records linked to visits
 - **Expenses**: Clinic operational costs and withdrawals
 - **Audit Logs**: Track all create/update/delete operations
-- **Reminder Logs**: Track appointment reminder status
 
 ### Project Structure
 ```
@@ -93,14 +91,7 @@ Preferred communication style: Simple, everyday language.
 - Filterable by entity type
 - Manager-only access
 
-### 5. Appointment Reminders
-- Daily scheduler checks tomorrow's appointments
-- Creates reminder logs (pending status)
-- Manual test trigger endpoint
-- Reminder log table in appointments page
-- Infrastructure ready for SMS/Email/WhatsApp integration
-
-### 6. Reports & Export
+### 5. Reports & Export
 - Excel export (multi-sheet with summary, visits, expenses)
 - PDF export (landscape with financial summary and tables)
 - Filter by date range, doctor, service type
@@ -137,7 +128,7 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/visits/:id` - Get single visit
 - `POST /api/visits` - Create visit with items and tooth data (+ audit log)
 - `PATCH /api/visits/:id` - Update visit, supports items array for full edit (+ audit log)
-- `DELETE /api/visits/:id` - Delete visit (blocked if payments exist)
+- `DELETE /api/visits/:id` - Delete visit (cascades payments and items)
 
 ### Financial
 - `GET /api/expenses` - Fetch all expenses
@@ -146,10 +137,8 @@ Preferred communication style: Simple, everyday language.
 - `POST /api/payments` - Record payment
 - `GET /api/reports/financial` - Filtered financial report
 
-### Audit & Reminders
+### Audit
 - `GET /api/audit-logs` - Fetch audit logs (manager only)
-- `GET /api/reminder-logs` - Fetch reminder logs
-- `POST /api/reminders/send-test` - Trigger manual reminder check
 
 ### Users
 - `GET /api/users` - List users (manager only)
@@ -159,7 +148,7 @@ Preferred communication style: Simple, everyday language.
 ## Pages
 - **الرئيسية** (Dashboard) - System overview with role-based stats
 - **المرضى** (Patients) - Patient management
-- **المواعيد** (Appointments) - Appointment scheduling + reminders tab
+- **المواعيد** (Appointments) - Appointment scheduling and management
 - **الزيارات** (Visits) - Visit records with tooth selector, edit mode
 - **الخدمات** (Services) - Service management with teeth selection toggle
 - **المالية والتقارير** (Finance) - Financial tracking with Excel/PDF export
@@ -205,7 +194,7 @@ Preferred communication style: Simple, everyday language.
 - ✅ All 6 features implemented
 - ✅ Server running on port 5000
 - ✅ All API routes active with RBAC
-- ✅ Scheduler running for reminders
+- ✅ Cascade delete for patients, visits, and expenses
 - ✅ PDF export fixed (autoTable import)
 - ✅ Lazy loading enabled
 - ✅ Pagination on visits and patients pages

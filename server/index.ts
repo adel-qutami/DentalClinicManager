@@ -3,7 +3,6 @@ import session from "express-session";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { startReminderScheduler } from "./scheduler";
 import { autoSeedIfEmpty } from "./auto-seed";
 
 declare module "express-session" {
@@ -123,7 +122,6 @@ app.use((req, res, next) => {
     async () => {
       log(`serving on port ${port}`);
       await autoSeedIfEmpty();
-      startReminderScheduler();
     },
   );
 })();

@@ -10,7 +10,6 @@ import {
   insertVisitItemSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
-import { triggerRemindersManually } from "./scheduler";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
 
@@ -571,23 +570,6 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/reminder-logs", async (req, res) => {
-    try {
-      const logs = await storage.getReminderLogs();
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch reminder logs" });
-    }
-  });
-
-  app.post("/api/reminders/send-test", async (req, res) => {
-    try {
-      const count = await triggerRemindersManually();
-      res.json({ message: `Created ${count} reminder(s) for tomorrow's appointments` });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to trigger reminders" });
-    }
-  });
 
   app.get("/api/reports/financial", async (req, res) => {
     try {
