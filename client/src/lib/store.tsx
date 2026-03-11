@@ -89,14 +89,18 @@ interface StoreContextType {
   
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<{ success: boolean; error?: string }>;
+  deletePatient: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateAppointment: (id: string, appt: Partial<Appointment>) => Promise<{ success: boolean; error?: string }>;
+  deleteAppointment: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   addVisit: (visit: Omit<Visit, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateVisit: (id: string, visit: Partial<Visit>) => Promise<{ success: boolean; error?: string }>;
   
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateExpense: (id: string, expense: Partial<Expense>) => Promise<{ success: boolean; error?: string }>;
+  deleteExpense: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   addService: (service: Omit<Service, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateService: (id: string, service: Partial<Omit<Service, 'id'>>) => Promise<{ success: boolean; error?: string }>;
@@ -276,6 +280,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const deletePatient = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/patients/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setPatients(prev => prev.filter(p => p.id !== id));
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل حذف المريض' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
   const addAppointment = async (appt: Omit<Appointment, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/appointments`, {
@@ -311,6 +332,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const errData = await res.json();
       return { success: false, error: errData.message || 'فشل تحديث الموعد' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
+  const deleteAppointment = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/appointments/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setAppointments(prev => prev.filter(a => a.id !== id));
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل حذف الموعد' };
     } catch (error) {
       return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
@@ -385,6 +423,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const data = await res.json();
       return { success: false, error: data.message || 'فشل إضافة المصروف' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
+  const updateExpense = async (id: string, data: Partial<Expense>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/expenses/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setExpenses(prev => prev.map(e => e.id === id ? updated : e));
+        return { success: true };
+      }
+      const errData = await res.json();
+      return { success: false, error: errData.message || 'فشل تحديث المصروف' };
+    } catch (error) {
+      return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
+    }
+  };
+
+  const deleteExpense = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${API_BASE}/expenses/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setExpenses(prev => prev.filter(e => e.id !== id));
+        return { success: true };
+      }
+      const data = await res.json();
+      return { success: false, error: data.message || 'فشل حذف المصروف' };
     } catch (error) {
       return { success: false, error: 'خطأ في الاتصال بالسيرفر' };
     }
@@ -493,8 +568,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider value={{
       user, authLoading, login, logout, register, can,
       patients, services, appointments, visits, expenses, loading,
-      addPatient, updatePatient, addAppointment, updateAppointment,
-      addVisit, updateVisit, addExpense, addService, updateService, deleteService, addPayment, getVisitPayments, getPatient, getService
+      addPatient, updatePatient, deletePatient,
+      addAppointment, updateAppointment, deleteAppointment,
+      addVisit, updateVisit,
+      addExpense, updateExpense, deleteExpense,
+      addService, updateService, deleteService,
+      addPayment, getVisitPayments, getPatient, getService
     }}>
       {children}
     </StoreContext.Provider>

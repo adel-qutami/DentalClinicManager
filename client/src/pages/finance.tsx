@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText, X } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Filter, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText, X, Trash2, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -47,9 +47,10 @@ const expenseSchema = z.object({
 });
 
 export default function Finance() {
-  const { expenses, visits, appointments, patients, services, addExpense } = useStore();
+  const { expenses, visits, appointments, patients, services, addExpense, deleteExpense } = useStore();
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
@@ -82,6 +83,17 @@ export default function Finance() {
       notes: "",
     },
   });
+
+  async function confirmDeleteExpense() {
+    if (!deleteExpenseId) return;
+    const result = await deleteExpense(deleteExpenseId);
+    if (result.success) {
+      toast({ title: "تم الحذف", description: "تم حذف العنصر بنجاح" });
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+    setDeleteExpenseId(null);
+  }
 
   async function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
     const result = await addExpense(values);
@@ -316,8 +328,8 @@ export default function Finance() {
         v.doctorName,
         Number(v.totalAmount),
         Number(v.paidAmount),
-        v.diagnosis || '',
-        v.notes || '',
+        '',
+        '',
       ]),
     ]);
 
@@ -367,7 +379,7 @@ export default function Finance() {
       v.doctorName,
       Number(v.totalAmount).toLocaleString(),
       Number(v.paidAmount).toLocaleString(),
-      v.diagnosis || '-',
+      '-',
     ]);
 
     if (visitsTableData.length > 0) {
@@ -902,40 +914,62 @@ export default function Finance() {
             </Card>
           )}
 
-          <div className="rounded-md border bg-card">
+          {deleteExpenseId && (
+            <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
+              <CardContent className="flex items-center justify-between gap-4 py-4">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذا المصروف؟</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="destructive" size="sm" onClick={confirmDeleteExpense} data-testid="button-confirm-delete-expense">حذف</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDeleteExpenseId(null)} data-testid="button-cancel-delete-expense">إلغاء</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">النوع</TableHead>
-                  <TableHead className="text-right">البند</TableHead>
-                  <TableHead className="text-right">التصنيف</TableHead>
-                  <TableHead className="text-right">المبلغ</TableHead>
-                  <TableHead className="text-right">ملاحظات</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-right font-semibold">التاريخ</TableHead>
+                  <TableHead className="text-right font-semibold">النوع</TableHead>
+                  <TableHead className="text-right font-semibold">البند</TableHead>
+                  <TableHead className="text-right font-semibold">التصنيف</TableHead>
+                  <TableHead className="text-right font-semibold">المبلغ</TableHead>
+                  <TableHead className="text-right font-semibold">ملاحظات</TableHead>
+                  <TableHead className="text-center font-semibold w-16">حذف</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {onlyExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <Wallet className="w-10 h-10 mx-auto mb-2 text-muted-foreground/25" />
                       لا توجد مصروفات مسجلة
                     </TableCell>
                   </TableRow>
                 ) : (
                   onlyExpenses.map((expense) => (
-                    <TableRow key={expense.id}>
+                    <TableRow key={expense.id} className="hover:bg-muted/30 transition-colors group">
                       <TableCell className="font-medium">{expense.date}</TableCell>
                        <TableCell>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                             expense.type === 'fixed' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                        <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
+                             expense.type === 'fixed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                            }`}>
                              {expense.type === 'fixed' ? 'مصروف ثابت' : 'مصروف تشغيلي'}
                            </span>
                       </TableCell>
                       <TableCell>{expense.title}</TableCell>
                       <TableCell>{expense.category}</TableCell>
-                      <TableCell className="text-red-600 font-medium">-{expense.amount} ر.س</TableCell>
+                      <TableCell className="text-red-600 font-medium">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{expense.notes || '-'}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDeleteExpenseId(expense.id)} data-testid={`button-delete-expense-${expense.id}`}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -1042,36 +1076,43 @@ export default function Finance() {
             </Card>
           )}
 
-          <div className="rounded-md border bg-card">
+          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">النوع</TableHead>
-                  <TableHead className="text-right">البند</TableHead>
-                  <TableHead className="text-right">المبلغ</TableHead>
-                  <TableHead className="text-right">ملاحظات</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-right font-semibold">التاريخ</TableHead>
+                  <TableHead className="text-right font-semibold">النوع</TableHead>
+                  <TableHead className="text-right font-semibold">البند</TableHead>
+                  <TableHead className="text-right font-semibold">المبلغ</TableHead>
+                  <TableHead className="text-right font-semibold">ملاحظات</TableHead>
+                  <TableHead className="text-center font-semibold w-16">حذف</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {onlyWithdrawals.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <ArrowDownCircle className="w-10 h-10 mx-auto mb-2 text-muted-foreground/25" />
                       لا توجد سحبيات مسجلة
                     </TableCell>
                   </TableRow>
                 ) : (
                   onlyWithdrawals.map((expense) => (
-                    <TableRow key={expense.id}>
+                    <TableRow key={expense.id} className="hover:bg-muted/30 transition-colors group">
                       <TableCell className="font-medium">{expense.date}</TableCell>
                        <TableCell>
-                        <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                        <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-medium">
                              سحب شخصي
                          </span>
                       </TableCell>
                       <TableCell>{expense.title}</TableCell>
-                      <TableCell className="text-amber-700 font-medium">-{expense.amount} ر.س</TableCell>
+                      <TableCell className="text-amber-700 font-medium">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{expense.notes || '-'}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDeleteExpenseId(expense.id)} data-testid={`button-delete-withdrawal-${expense.id}`}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

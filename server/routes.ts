@@ -162,6 +162,31 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      const oldPatient = await storage.getPatient(req.params.id);
+      if (!oldPatient) {
+        return res.status(404).json({ message: "المريض غير موجود" });
+      }
+      await storage.deletePatient(req.params.id);
+      await storage.createAuditLog({
+        userId: req.session?.userId || null,
+        entityName: "patient",
+        entityId: req.params.id,
+        actionType: "delete",
+        oldValues: oldPatient,
+        newValues: null,
+      });
+      res.status(204).send();
+    } catch (error: any) {
+      if (error?.code === "23503" || error?.message?.includes("foreign key")) {
+        res.status(409).json({ message: "لا يمكن حذف مريض لديه زيارات أو مواعيد مسجلة" });
+      } else {
+        res.status(400).json({ message: "فشل في حذف المريض" });
+      }
+    }
+  });
+
   app.get("/api/services", async (req, res) => {
     const services = await storage.getAllServices();
     res.json(services);
@@ -269,6 +294,27 @@ export async function registerRoutes(
       res.json(appointment);
     } catch (error) {
       res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      const oldAppt = await storage.getAppointment(req.params.id);
+      if (!oldAppt) {
+        return res.status(404).json({ message: "الموعد غير موجود" });
+      }
+      await storage.deleteAppointment(req.params.id);
+      await storage.createAuditLog({
+        userId: req.session?.userId || null,
+        entityName: "appointment",
+        entityId: req.params.id,
+        actionType: "delete",
+        oldValues: oldAppt,
+        newValues: null,
+      });
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ message: "فشل في حذف الموعد" });
     }
   });
 
@@ -471,6 +517,46 @@ export async function registerRoutes(
       res.status(201).json(expense);
     } catch (error) {
       res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.patch("/api/expenses/:id", async (req, res) => {
+    try {
+      const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
+      const validated = insertExpenseSchema.partial().parse(req.body);
+      const expense = await storage.updateExpense(req.params.id, validated);
+      await storage.createAuditLog({
+        userId: req.session?.userId || null,
+        entityName: "expense",
+        entityId: req.params.id,
+        actionType: "update",
+        oldValues: oldExpense || null,
+        newValues: expense,
+      });
+      res.json(expense);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.delete("/api/expenses/:id", async (req, res) => {
+    try {
+      const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
+      if (!oldExpense) {
+        return res.status(404).json({ message: "المصروف غير موجود" });
+      }
+      await storage.deleteExpense(req.params.id);
+      await storage.createAuditLog({
+        userId: req.session?.userId || null,
+        entityName: "expense",
+        entityId: req.params.id,
+        actionType: "delete",
+        oldValues: oldExpense,
+        newValues: null,
+      });
+      res.status(204).send();
+    } catch (error) {
+      res.status(400).json({ message: "فشل في حذف المصروف" });
     }
   });
 
