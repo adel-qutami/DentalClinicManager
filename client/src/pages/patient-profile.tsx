@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function PatientProfile({ id }: { id: string }) {
   const {
     patients, visits, appointments, services, loading,
-    getVisitPayments, getService, deleteVisit, deleteAppointment, updateAppointment
+    getVisitPayments, getService, deleteVisit, deleteAppointment, updateAppointment, addPayment
   } = useStore();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -27,6 +27,10 @@ export default function PatientProfile({ id }: { id: string }) {
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
   const [deleteApptId, setDeleteApptId] = useState<string | null>(null);
+  const [payingVisitId, setPayingVisitId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState<string>("");
+  const [payDate, setPayDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paySubmitting, setPaySubmitting] = useState(false);
 
   const patient = patients.find(p => p.id === id);
   const patientVisits = useMemo(() =>
@@ -125,6 +129,35 @@ export default function PatientProfile({ id }: { id: string }) {
     } else {
       toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
     }
+  }
+
+  function openPayForm(visitId: string, remaining: number) {
+    setPayingVisitId(visitId);
+    setPayAmount(remaining.toString());
+    setPayDate(new Date().toISOString().split('T')[0]);
+  }
+
+  async function handleQuickPay() {
+    if (!payingVisitId) return;
+    const amount = Number(payAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "خطأ", description: "أدخل مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+    setPaySubmitting(true);
+    const result = await addPayment(payingVisitId, payDate, amount);
+    if (result.success) {
+      toast({ title: "تم الدفع", description: `تم تسجيل دفعة بمبلغ ${amount.toLocaleString()} ر.س` });
+      try {
+        const updated = await getVisitPayments(payingVisitId);
+        setVisitPaymentsMap(prev => ({ ...prev, [payingVisitId]: updated }));
+      } catch {}
+    } else {
+      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    }
+    setPaySubmitting(false);
+    setPayingVisitId(null);
+    setPayAmount("");
   }
 
   const statusBadge = (status: string) => {
@@ -359,10 +392,53 @@ export default function PatientProfile({ id }: { id: string }) {
                             </div>
                           )}
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => setDeleteVisitId(visit.id)} data-testid={`button-delete-visit-${visit.id}`}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {remaining > 0 && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => openPayForm(visit.id, remaining)} data-testid={`button-pay-visit-${visit.id}`}>
+                              <Wallet className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteVisitId(visit.id)} data-testid={`button-delete-visit-${visit.id}`}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
+                      {payingVisitId === visit.id && (
+                        <div className="mt-3 border-t pt-3">
+                          <div className="flex items-end gap-3 flex-wrap">
+                            <div className="flex-1 min-w-[120px]">
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">المبلغ (ر.س)</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max={remaining}
+                                value={payAmount}
+                                onChange={(e) => setPayAmount(e.target.value)}
+                                className="h-9"
+                                data-testid={`input-pay-amount-${visit.id}`}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">تاريخ الدفع</label>
+                              <Input
+                                type="date"
+                                value={payDate}
+                                onChange={(e) => setPayDate(e.target.value)}
+                                className="h-9"
+                                data-testid={`input-pay-date-${visit.id}`}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-9 bg-green-600 hover:bg-green-700" onClick={handleQuickPay} disabled={paySubmitting} data-testid={`button-confirm-pay-${visit.id}`}>
+                                <CreditCard className="w-3.5 h-3.5 ml-1.5" />
+                                {paySubmitting ? "جارٍ..." : "تسجيل الدفعة"}
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-9" onClick={() => setPayingVisitId(null)}>إلغاء</Button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">المتبقي على هذه الزيارة: <span className="font-bold text-red-600">{remaining.toLocaleString()} ر.س</span></p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
