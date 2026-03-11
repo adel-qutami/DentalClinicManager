@@ -147,7 +147,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Pages
 - **الرئيسية** (Dashboard) - System overview with role-based stats
-- **المرضى** (Patients) - Patient management
+- **المرضى** (Patients) - Patient management with clickable rows
+- **ملف المريض** (Patient Profile) - Full patient profile with visits, appointments, payments, and treated teeth
 - **المواعيد** (Appointments) - Appointment scheduling and management
 - **الزيارات** (Visits) - Visit records with tooth selector, edit mode
 - **الخدمات** (Services) - Service management with teeth selection toggle

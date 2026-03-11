@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore, Patient } from "@/lib/store";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +28,7 @@ const ITEMS_PER_PAGE = 12;
 
 export default function Patients() {
   const { patients, addPatient, updatePatient, deletePatient, loading } = useStore();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -320,7 +322,7 @@ export default function Patients() {
               </TableRow>
             ) : (
               paginatedPatients.map((patient) => (
-                <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group" data-testid={`row-patient-${patient.id}`}>
+                <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`row-patient-${patient.id}`}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
@@ -354,10 +356,10 @@ export default function Patients() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditForm(patient)} data-testid={`button-edit-patient-${patient.id}`}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditForm(patient); }} data-testid={`button-edit-patient-${patient.id}`}>
                         <Edit className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(patient.id)} data-testid={`button-delete-patient-${patient.id}`}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(patient.id); }} data-testid={`button-delete-patient-${patient.id}`}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>

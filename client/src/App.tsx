@@ -16,6 +16,7 @@ const Finance = lazy(() => import("@/pages/finance"));
 const Services = lazy(() => import("@/pages/services"));
 const UsersPage = lazy(() => import("@/pages/users"));
 const AuditLog = lazy(() => import("@/pages/audit-log"));
+const PatientProfile = lazy(() => import("@/pages/patient-profile"));
 
 function PageLoader() {
   return (
@@ -64,6 +65,13 @@ function Router() {
         </Route>
         <Route path="/patients">
           {() => <ProtectedRoute component={Patients} permission="patients_view" />}
+        </Route>
+        <Route path="/patients/:id">
+          {(params: { id: string }) => (
+            <Suspense fallback={<PageLoader />}>
+              <PatientProfile id={params.id} />
+            </Suspense>
+          )}
         </Route>
         <Route path="/appointments">
           {() => <ProtectedRoute component={Appointments} permission="appointments_view" />}
