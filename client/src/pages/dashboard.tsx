@@ -18,27 +18,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const canViewFinance = can("finance_view");
 
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-20 bg-muted rounded-xl" />
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-muted rounded-xl" />)}
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="h-72 bg-muted rounded-xl lg:col-span-2" />
-          <div className="h-72 bg-muted rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
   const today = new Date();
-  const todayAppointments = appointments.filter(a => isToday(new Date(a.date)));
-  const todayVisits = visits.filter(v => isToday(new Date(v.date)));
-  const scheduledToday = todayAppointments.filter(a => a.status === 'scheduled').length;
-  const completedToday = todayAppointments.filter(a => a.status === 'completed').length;
-  const cancelledToday = todayAppointments.filter(a => a.status === 'cancelled').length;
 
   const thisMonth = useMemo(() => {
     const monthVisits = visits.filter(v => isSameMonth(parseISO(v.date), today));
@@ -50,13 +30,6 @@ export default function Dashboard() {
     const withdrawals = monthWithdrawals.reduce((s, e) => s + Number(e.amount), 0);
     return { income, totalAmount, expenses: exp, withdrawals, profit: income - exp, visits: monthVisits.length, uncollected: totalAmount - income };
   }, [visits, expenses]);
-
-  const totalIncome = visits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
-  const totalExpensesAll = expenses.filter(e => e.type !== 'withdrawal').reduce((sum, e) => sum + Number(e.amount), 0);
-  const netProfit = totalIncome - totalExpensesAll;
-  const todayIncome = todayVisits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
-  const pendingBalance = visits.reduce((acc, v) => acc + Math.max(0, Number(v.totalAmount) - Number(v.paidAmount)), 0);
-  const unpaidVisitsCount = visits.filter(v => Number(v.totalAmount) - Number(v.paidAmount) > 0).length;
 
   const recentPatients = useMemo(() => {
     const sevenDaysAgo = subDays(today, 7);
@@ -98,6 +71,34 @@ export default function Dashboard() {
 
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
   }, [visits, appointments, patients]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-20 bg-muted rounded-xl" />
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-muted rounded-xl" />)}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="h-72 bg-muted rounded-xl lg:col-span-2" />
+          <div className="h-72 bg-muted rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  const todayAppointments = appointments.filter(a => isToday(new Date(a.date)));
+  const todayVisits = visits.filter(v => isToday(new Date(v.date)));
+  const scheduledToday = todayAppointments.filter(a => a.status === 'scheduled').length;
+  const completedToday = todayAppointments.filter(a => a.status === 'completed').length;
+  const cancelledToday = todayAppointments.filter(a => a.status === 'cancelled').length;
+
+  const totalIncome = visits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
+  const totalExpensesAll = expenses.filter(e => e.type !== 'withdrawal').reduce((sum, e) => sum + Number(e.amount), 0);
+  const netProfit = totalIncome - totalExpensesAll;
+  const todayIncome = todayVisits.reduce((sum, v) => sum + Number(v.paidAmount), 0);
+  const pendingBalance = visits.reduce((acc, v) => acc + Math.max(0, Number(v.totalAmount) - Number(v.paidAmount)), 0);
+  const unpaidVisitsCount = visits.filter(v => Number(v.totalAmount) - Number(v.paidAmount) > 0).length;
 
   const greeting = () => {
     const hour = today.getHours();
