@@ -682,5 +682,33 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/users/:id", requireAuth, requirePermission("users_manage"), async (req, res) => {
+    try {
+      const sessionUser = (req as any).user;
+      if (sessionUser?.id === req.params.id) {
+        return res.status(400).json({ message: "لا يمكنك حذف حسابك الخاص" });
+      }
+      await storage.deleteUser(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "فشل حذف المستخدم" });
+    }
+  });
+
+  app.patch("/api/users/:id/password", requireAuth, requirePermission("users_manage"), async (req, res) => {
+    try {
+      const sessionUser = (req as any).user;
+      if (sessionUser?.id === req.params.id) {
+        return res.status(400).json({ message: "لا يمكنك إعادة تعيين كلمة مرورك من هنا" });
+      }
+      const { password } = z.object({ password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل") }).parse(req.body);
+      const user = await storage.updateUser(req.params.id, { password });
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
   return httpServer;
 }

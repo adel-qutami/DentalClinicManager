@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStore, Appointment } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export default function Appointments() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
@@ -80,7 +81,8 @@ export default function Appointments() {
   }
 
   async function onSubmit(values: z.infer<typeof appointmentSchema>) {
-    if (isSubmitting) return;
+    if (isSubmitting || submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       if (editingAppt) {
@@ -102,6 +104,7 @@ export default function Appointments() {
       }
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   }
 

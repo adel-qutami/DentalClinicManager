@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStore, Patient } from "@/lib/store";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export default function Patients() {
   const [currentPage, setCurrentPage] = useState(1);
   const [genderFilter, setGenderFilter] = useState<string>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof patientSchema>>({
@@ -86,7 +87,8 @@ export default function Patients() {
   }
 
   async function onSubmit(values: z.infer<typeof patientSchema>) {
-    if (isSubmitting) return;
+    if (isSubmitting || submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       if (editingPatient) {
@@ -108,6 +110,7 @@ export default function Patients() {
       }
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   }
 

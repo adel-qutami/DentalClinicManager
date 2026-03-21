@@ -40,6 +40,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
 
   getPatient(id: string): Promise<Patient | undefined>;
   getAllPatients(): Promise<Patient[]>;
@@ -131,6 +132,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async getPatient(id: string): Promise<Patient | undefined> {
