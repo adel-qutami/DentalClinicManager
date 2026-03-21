@@ -13,8 +13,29 @@ import {
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { sql as drizzleSql } from "drizzle-orm";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function verifyPassword(stored: string, supplied: string): Promise<boolean> {
+  if (!stored.includes(".")) {
+    return stored === supplied;
+  }
+  const [hashed, salt] = stored.split(".");
+  const buf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  const hashedBuf = Buffer.from(hashed, "hex");
+  if (buf.length !== hashedBuf.length) return false;
+  return timingSafeEqual(buf, hashedBuf);
+}
 
 function formatZodError(error: unknown): string {
   if (error instanceof ZodError) {
@@ -88,7 +109,7 @@ export async function registerRoutes(
         .object({ username: z.string(), password: z.string() })
         .parse(req.body);
       const user = await storage.getUserByUsername(username);
-      if (!user || user.password !== password) {
+      if (!user || !(await verifyPassword(user.password, password))) {
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
       }
       req.session.userId = user.id;
@@ -130,7 +151,7 @@ export async function registerRoutes(
       if (existing) {
         return res.status(409).json({ message: "اسم المستخدم مستخدم بالفعل" });
       }
-      const user = await storage.createUser({ username, password, role });
+      const user = await storage.createUser({ username, password: await hashPassword(password), role });
       req.session.userId = user.id;
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
@@ -689,7 +710,7 @@ export async function registerRoutes(
       if (existing) {
         return res.status(409).json({ message: "اسم المستخدم مستخدم بالفعل" });
       }
-      const user = await storage.createUser({ username, password, role });
+      const user = await storage.createUser({ username, password: await hashPassword(password), role });
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {
@@ -733,7 +754,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "لا يمكنك إعادة تعيين كلمة مرورك من هنا" });
       }
       const { password } = z.object({ password: z.string().min(4, "كلمة المرور يجب أن تكون 4 أحرف على الأقل") }).parse(req.body);
-      const user = await storage.updateUser(req.params.id, { password });
+      const user = await storage.updateUser(req.params.id, { password: await hashPassword(password) });
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
