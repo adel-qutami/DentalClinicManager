@@ -455,21 +455,21 @@ export default function Finance() {
       </div>
 
       <Tabs defaultValue="reports" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="reports" className="gap-2" data-testid="tab-reports">
-            <BarChart3 className="w-4 h-4" />
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="reports" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-reports">
+            <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             التقارير
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="gap-2" data-testid="tab-expenses">
-            <Receipt className="w-4 h-4" />
+          <TabsTrigger value="expenses" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-expenses">
+            <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             المصروفات
           </TabsTrigger>
-          <TabsTrigger value="withdrawals" className="gap-2" data-testid="tab-withdrawals">
-            <ArrowDownCircle className="w-4 h-4" />
+          <TabsTrigger value="withdrawals" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-withdrawals">
+            <ArrowDownCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             السحبيات
           </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-2" data-testid="tab-categories">
-            <CircleDollarSign className="w-4 h-4" />
+          <TabsTrigger value="categories" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-categories">
+            <CircleDollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             التصنيفات
           </TabsTrigger>
         </TabsList>
@@ -791,7 +791,7 @@ export default function Finance() {
 
         {/* ═══════════════════ EXPENSES TAB ═══════════════════ */}
         <TabsContent value="expenses" className="space-y-5">
-          <div className="grid gap-3 grid-cols-3">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             <Card className="bg-gradient-to-l from-red-50 to-background dark:from-red-950/20 dark:to-background border">
               <CardContent className="py-4 px-4">
                 <div className="flex items-center gap-3">
@@ -940,8 +940,8 @@ export default function Finance() {
             </Card>
           )}
 
-          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-            <Table>
+          <div className="rounded-xl border bg-card overflow-hidden shadow-sm overflow-x-auto">
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-right font-semibold text-xs w-28">التاريخ</TableHead>
@@ -1145,8 +1145,8 @@ export default function Finance() {
             </Card>
           )}
 
-          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-            <Table>
+          <div className="rounded-xl border bg-card overflow-hidden shadow-sm overflow-x-auto">
+            <Table className="min-w-[480px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-right font-semibold text-xs w-28">التاريخ</TableHead>

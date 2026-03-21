@@ -305,81 +305,119 @@ export default function Patients() {
         </Select>
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="text-right font-semibold">المريض</TableHead>
-              <TableHead className="text-right font-semibold">رقم الهاتف</TableHead>
-              <TableHead className="text-right font-semibold">العمر / الجنس</TableHead>
-              <TableHead className="text-right font-semibold">تاريخ التسجيل</TableHead>
-              <TableHead className="text-right font-semibold">ملاحظات</TableHead>
-              <TableHead className="text-center font-semibold w-24">إجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPatients.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-3">
-                    <Users className="w-12 h-12 text-muted-foreground/30" />
-                    <div>
-                      <p className="font-medium text-foreground/70">لا توجد نتائج</p>
-                      <p className="text-sm mt-1">{search ? "جرب كلمة بحث مختلفة" : "ابدأ بإضافة مريض جديد"}</p>
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedPatients.map((patient) => (
-                <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`row-patient-${patient.id}`}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+      {filteredPatients.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="font-medium text-foreground/70">لا توجد نتائج</p>
+          <p className="text-sm mt-1">{search ? "جرب كلمة بحث مختلفة" : "ابدأ بإضافة مريض جديد"}</p>
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block rounded-xl border bg-card overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-right font-semibold">المريض</TableHead>
+                  <TableHead className="text-right font-semibold">رقم الهاتف</TableHead>
+                  <TableHead className="text-right font-semibold">العمر / الجنس</TableHead>
+                  <TableHead className="text-right font-semibold">تاريخ التسجيل</TableHead>
+                  <TableHead className="text-right font-semibold">ملاحظات</TableHead>
+                  <TableHead className="text-center font-semibold w-24">إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedPatients.map((patient) => (
+                  <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`row-patient-${patient.id}`}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                          patient.gender === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
+                        }`}>
+                          {patient.name.charAt(0)}
+                        </div>
+                        <span>{patient.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span dir="ltr">{patient.phone}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span>{patient.age} سنة</span>
+                      <span className="mx-1.5 text-muted-foreground">•</span>
+                      <Badge variant="outline" className={`text-[10px] ${patient.gender === 'male' ? 'border-blue-200 text-blue-700' : 'border-pink-200 text-pink-700'}`}>
+                        {patient.gender === 'male' ? 'ذكر' : 'أنثى'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('ar-SA') : '-'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm max-w-[200px]">
+                      {patient.notes ? (
+                        <span className="truncate block" title={patient.notes}>{patient.notes}</span>
+                      ) : (
+                        <span className="text-muted-foreground/50">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditForm(patient); }} data-testid={`button-edit-patient-${patient.id}`}>
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(patient.id); }} data-testid={`button-delete-patient-${patient.id}`}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {paginatedPatients.map((patient) => (
+              <Card key={patient.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`card-patient-mobile-${patient.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                         patient.gender === 'male' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
                       }`}>
                         {patient.name.charAt(0)}
                       </div>
-                      <span>{patient.name}</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{patient.name}</p>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                          <Phone className="w-3 h-3" />
+                          <span dir="ltr">{patient.phone}</span>
+                        </div>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Phone className="w-3.5 h-3.5" />
-                      <span dir="ltr">{patient.phone}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant="outline" className={`text-[10px] ${patient.gender === 'male' ? 'border-blue-200 text-blue-700' : 'border-pink-200 text-pink-700'}`}>
+                        {patient.gender === 'male' ? 'ذكر' : 'أنثى'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{patient.age}س</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span>{patient.age} سنة</span>
-                    <span className="mx-1.5 text-muted-foreground">•</span>
-                    <Badge variant="outline" className={`text-[10px] ${patient.gender === 'male' ? 'border-blue-200 text-blue-700' : 'border-pink-200 text-pink-700'}`}>
-                      {patient.gender === 'male' ? 'ذكر' : 'أنثى'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('ar-SA') : '-'}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm max-w-[200px]">
-                    {patient.notes ? (
-                      <span className="truncate block" title={patient.notes}>{patient.notes}</span>
-                    ) : (
-                      <span className="text-muted-foreground/50">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditForm(patient); }} data-testid={`button-edit-patient-${patient.id}`}>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">{patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('ar-SA') : '-'}</span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEditForm(patient); }} data-testid={`button-edit-mobile-${patient.id}`}>
                         <Edit className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(patient.id); }} data-testid={`button-delete-patient-${patient.id}`}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(patient.id); }} data-testid={`button-delete-mobile-${patient.id}`}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4" data-testid="patients-pagination">

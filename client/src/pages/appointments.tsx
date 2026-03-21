@@ -330,76 +330,113 @@ export default function Appointments() {
         </Card>
       )}
 
-      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="text-right font-semibold">التاريخ</TableHead>
-              <TableHead className="text-right font-semibold">المريض</TableHead>
-              <TableHead className="text-right font-semibold">الدكتور</TableHead>
-              <TableHead className="text-right font-semibold">الفترة</TableHead>
-              <TableHead className="text-right font-semibold">الحالة</TableHead>
-              <TableHead className="text-center font-semibold">إجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAppointments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-3">
-                    <CalendarIcon className="w-12 h-12 text-muted-foreground/30" />
-                    <p className="font-medium text-foreground/70">لا توجد مواعيد</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedAppointments.map((appt) => {
-                const patient = patients.find(p => p.id === appt.patientId);
-                return (
-                  <TableRow key={appt.id} className="hover:bg-muted/30 transition-colors group" data-testid={`row-appointment-${appt.id}`}>
-                    <TableCell className="font-medium">{appt.date}</TableCell>
-                    <TableCell>
+      {filteredAppointments.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <CalendarIcon className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="font-medium text-foreground/70">لا توجد مواعيد</p>
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block rounded-xl border bg-card overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-right font-semibold">التاريخ</TableHead>
+                  <TableHead className="text-right font-semibold">المريض</TableHead>
+                  <TableHead className="text-right font-semibold">الدكتور</TableHead>
+                  <TableHead className="text-right font-semibold">الفترة</TableHead>
+                  <TableHead className="text-right font-semibold">الحالة</TableHead>
+                  <TableHead className="text-center font-semibold">إجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedAppointments.map((appt) => {
+                  const patient = patients.find(p => p.id === appt.patientId);
+                  return (
+                    <TableRow key={appt.id} className="hover:bg-muted/30 transition-colors group" data-testid={`row-appointment-${appt.id}`}>
+                      <TableCell className="font-medium">{appt.date}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+                            {patient?.name?.charAt(0) || '?'}
+                          </div>
+                          {patient?.name || 'مريض محذوف'}
+                        </div>
+                      </TableCell>
+                      <TableCell>{appt.doctorName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">
+                          {appt.period === 'morning' ? 'صباحاً' : 'مساءً'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{statusBadge(appt.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          {appt.status === 'scheduled' && (
+                            <>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(appt.id, 'completed')} data-testid={`button-complete-${appt.id}`}>
+                                إتمام
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatusChange(appt.id, 'cancelled')} data-testid={`button-cancel-${appt.id}`}>
+                                إلغاء
+                              </Button>
+                            </>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => openEditForm(appt)} data-testid={`button-edit-${appt.id}`}>
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => setDeleteId(appt.id)} data-testid={`button-delete-${appt.id}`}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {paginatedAppointments.map((appt) => {
+              const patient = patients.find(p => p.id === appt.patientId);
+              return (
+                <Card key={appt.id} className="overflow-hidden" data-testid={`card-appointment-mobile-${appt.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
                           {patient?.name?.charAt(0) || '?'}
                         </div>
-                        {patient?.name || 'مريض محذوف'}
+                        <div>
+                          <p className="font-semibold text-sm">{patient?.name || 'مريض محذوف'}</p>
+                          <p className="text-xs text-muted-foreground">{appt.doctorName}</p>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{appt.doctorName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px]">
-                        {appt.period === 'morning' ? 'صباحاً' : 'مساءً'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{statusBadge(appt.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1">
-                        {appt.status === 'scheduled' && (
-                          <>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(appt.id, 'completed')} data-testid={`button-complete-${appt.id}`}>
-                              إتمام
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatusChange(appt.id, 'cancelled')} data-testid={`button-cancel-${appt.id}`}>
-                              إلغاء
-                            </Button>
-                          </>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => openEditForm(appt)} data-testid={`button-edit-${appt.id}`}>
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => setDeleteId(appt.id)} data-testid={`button-delete-${appt.id}`}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                      {statusBadge(appt.status)}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                      <span>{appt.date}</span>
+                      <span>•</span>
+                      <Badge variant="outline" className="text-[10px]">{appt.period === 'morning' ? 'صباحاً' : 'مساءً'}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {appt.status === 'scheduled' && (
+                        <>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-200 flex-1" onClick={() => handleStatusChange(appt.id, 'completed')} data-testid={`button-complete-mobile-${appt.id}`}>إتمام</Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200 flex-1" onClick={() => handleStatusChange(appt.id, 'cancelled')} data-testid={`button-cancel-mobile-${appt.id}`}>إلغاء</Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditForm(appt)} data-testid={`button-edit-mobile-${appt.id}`}><Edit className="w-3.5 h-3.5" /></Button>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => setDeleteId(appt.id)} data-testid={`button-delete-mobile-${appt.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4" data-testid="appointments-pagination">

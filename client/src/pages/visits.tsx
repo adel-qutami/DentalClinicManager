@@ -462,7 +462,7 @@ export default function Visits() {
                                 <Input
                                   type="number"
                                   placeholder="السعر"
-                                  className="w-24"
+                                  className="w-full sm:w-24"
                                   {...field}
                                   value={field.value || ""}
                                   onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))}
@@ -484,7 +484,7 @@ export default function Visits() {
                                   type="number"
                                   min="1"
                                   placeholder="1"
-                                  className="w-20"
+                                  className="w-full sm:w-20"
                                   {...field}
                                   onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                                   data-testid={`input-quantity-${index}`}
@@ -697,7 +697,7 @@ export default function Visits() {
                                 <Input
                                   type="number"
                                   placeholder="السعر"
-                                  className="w-24"
+                                  className="w-full sm:w-24"
                                   {...field}
                                   value={field.value || ""}
                                   onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))}
@@ -719,7 +719,7 @@ export default function Visits() {
                                   type="number"
                                   min="1"
                                   placeholder="1"
-                                  className="w-20"
+                                  className="w-full sm:w-20"
                                   {...field}
                                   onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                                   data-testid={`edit-input-quantity-${index}`}

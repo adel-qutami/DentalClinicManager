@@ -118,7 +118,7 @@ export default function Dashboard() {
             {format(today, "EEEE، d MMMM yyyy", { locale: ar })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => navigate('/patients')} data-testid="button-quick-patient">
             <UserPlus className="w-3.5 h-3.5" />
             مريض جديد
