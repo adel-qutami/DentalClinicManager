@@ -40,6 +40,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User>;
+  updateUserPermissions(id: string, permissions: string[] | null): Promise<User>;
   deleteUser(id: string): Promise<void>;
 
   getPatient(id: string): Promise<Patient | undefined>;
@@ -129,6 +130,15 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(users)
       .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateUserPermissions(id: string, permissions: string[] | null): Promise<User> {
+    const result = await db
+      .update(users)
+      .set({ customPermissions: permissions })
       .where(eq(users.id, id))
       .returning();
     return result[0];

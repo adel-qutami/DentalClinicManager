@@ -382,10 +382,10 @@ export default function Appointments() {
                               </Button>
                             </>
                           )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => openEditForm(appt)} data-testid={`button-edit-${appt.id}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditForm(appt)} data-testid={`button-edit-${appt.id}`}>
                             <Edit className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => setDeleteId(appt.id)} data-testid={`button-delete-${appt.id}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(appt.id)} data-testid={`button-delete-${appt.id}`}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>

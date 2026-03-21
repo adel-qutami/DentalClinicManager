@@ -360,7 +360,7 @@ export default function Patients() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditForm(patient); }} data-testid={`button-edit-patient-${patient.id}`}>
                           <Edit className="w-3.5 h-3.5" />
                         </Button>

@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import {
   insertPatientSchema,
   insertAppointmentSchema,
@@ -11,6 +12,7 @@ import {
   insertExpenseCategorySchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
+import { sql as drizzleSql } from "drizzle-orm";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
 
@@ -39,7 +41,16 @@ function requirePermission(...permissions: Permission[]) {
       return res.status(401).json({ message: "المستخدم غير موجود" });
     }
     const role = user.role as Role;
-    const allowed = permissions.some((p) => hasPermission(role, p));
+    if (role === "manager") {
+      return next();
+    }
+    const customPerms = user.customPermissions as string[] | null | undefined;
+    let allowed: boolean;
+    if (customPerms && Array.isArray(customPerms)) {
+      allowed = permissions.some((p) => customPerms.includes(p));
+    } else {
+      allowed = permissions.some((p) => hasPermission(role, p));
+    }
     if (!allowed) {
       return res.status(403).json({ message: "ليس لديك صلاحية لهذا الإجراء" });
     }
@@ -51,6 +62,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  try {
+    await db.execute(drizzleSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_permissions json`);
+  } catch (_) {}
 
   app.post("/api/admin/seed", async (req, res) => {
     const key = req.headers["x-seed-key"] || req.body?.seedKey;
@@ -692,6 +707,22 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "فشل حذف المستخدم" });
+    }
+  });
+
+  app.patch("/api/users/:id/permissions", requireAuth, requirePermission("users_manage"), async (req, res) => {
+    try {
+      const targetUser = await storage.getUser(req.params.id);
+      if (!targetUser) return res.status(404).json({ message: "المستخدم غير موجود" });
+      if (targetUser.role === "manager") return res.status(400).json({ message: "لا يمكن تعديل صلاحيات المدير" });
+      const { permissions } = z.object({
+        permissions: z.array(z.string()).nullable(),
+      }).parse(req.body);
+      const user = await storage.updateUserPermissions(req.params.id, permissions);
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
     }
   });
 

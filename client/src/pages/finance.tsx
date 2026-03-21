@@ -1008,7 +1008,7 @@ export default function Finance() {
                         <TableCell className="text-red-600 dark:text-red-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
                         <TableCell className="text-muted-foreground text-xs max-w-[150px] truncate">{expense.notes || '—'}</TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditExpense(expense)} data-testid={`button-edit-expense-${expense.id}`}><Edit className="w-3 h-3" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteExpenseId(expense.id)} data-testid={`button-delete-expense-${expense.id}`}><Trash2 className="w-3 h-3" /></Button>
                           </div>
@@ -1195,7 +1195,7 @@ export default function Finance() {
                         <TableCell className="text-amber-600 dark:text-amber-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
                         <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{expense.notes || '—'}</TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditWithdrawal(expense)} data-testid={`button-edit-withdrawal-${expense.id}`}><Edit className="w-3 h-3" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteExpenseId(expense.id)} data-testid={`button-delete-withdrawal-${expense.id}`}><Trash2 className="w-3 h-3" /></Button>
                           </div>
@@ -1332,7 +1332,7 @@ export default function Finance() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{catExpenseCount}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" data-testid={`btn-edit-category-${cat.id}`}
                               onClick={() => { setEditingCategoryId(cat.id); editCategoryForm.reset({ name: cat.name, type: cat.type as 'operational' | 'fixed' }); }}>
                               <Edit className="w-3.5 h-3.5" />

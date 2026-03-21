@@ -34,8 +34,16 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Managed via `drizzle-kit push` command
 - **Connection**: Uses `DATABASE_URL` environment variable
 
+### Permissions System
+- **Role-based**: Manager has all permissions; dentist and receptionist have role defaults from `shared/permissions.ts`
+- **Per-user custom**: Admin can assign individual permissions per user via the `customPermissions` JSON column on the users table
+- **Priority**: Manager role always has full access; for others, custom permissions override role defaults; null customPermissions falls back to role defaults
+- **API**: `PATCH /api/users/:id/permissions` with `{ permissions: string[] | null }` — null resets to role defaults
+- **Client**: `can()` in store.tsx checks: manager → always true; customPermissions array → check inclusion; otherwise → role default
+- **ALL_PERMISSIONS**: Exported from `shared/permissions.ts` for listing all permission keys
+
 ### Key Data Models
-- **Users**: Authentication with role (receptionist/dentist/manager)
+- **Users**: Authentication with role (receptionist/dentist/manager) + optional `customPermissions` JSON array
 - **Patients**: Name, phone, age, gender, notes
 - **Services**: Dental procedures with default pricing and teeth selection flag
 - **Appointments**: Scheduled patient visits with morning/evening periods

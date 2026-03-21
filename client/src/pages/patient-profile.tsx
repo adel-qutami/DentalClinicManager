@@ -392,7 +392,7 @@ export default function PatientProfile({ id }: { id: string }) {
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <div className="flex flex-col gap-1 shrink-0">
                           {remaining > 0 && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => openPayForm(visit.id, remaining)} data-testid={`button-pay-visit-${visit.id}`}>
                               <Wallet className="w-4 h-4" />
@@ -501,7 +501,7 @@ export default function PatientProfile({ id }: { id: string }) {
                               <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => handleStatusChange(appt.id, 'cancelled')}>إلغاء</Button>
                             </>
                           )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => setDeleteApptId(appt.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteApptId(appt.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>

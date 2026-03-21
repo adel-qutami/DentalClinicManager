@@ -8,6 +8,7 @@ export interface AuthUser {
   id: string;
   username: string;
   role: Role;
+  customPermissions?: string[] | null;
 }
 
 export interface Patient {
@@ -246,6 +247,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const can = (permission: Permission): boolean => {
     if (!user) return false;
+    if (user.role === "manager") return true;
+    if (user.customPermissions && Array.isArray(user.customPermissions)) {
+      return user.customPermissions.includes(permission);
+    }
     return hasPermission(user.role, permission);
   };
 

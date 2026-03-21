@@ -1165,7 +1165,7 @@ export default function Visits() {
                           <div className="text-xs text-red-600">متبقي: {remaining} ر.س</div>
                         )}
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setDeleteVisitId(visit.id); }} data-testid={`button-delete-visit-${visit.id}`}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteVisitId(visit.id); }} data-testid={`button-delete-visit-${visit.id}`}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>

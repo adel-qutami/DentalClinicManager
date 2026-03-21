@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, Shield, UserCog, X, Trash2, Key, Check, CheckCircle2,
-  XCircle, Users, Eye, Edit, DollarSign, FileText, Settings, Lock,
-  AlertTriangle,
+  XCircle, Eye, Edit, DollarSign, FileText, Settings, Lock,
+  AlertTriangle, RotateCcw, Save, Sliders,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ interface UserRecord {
   id: string;
   username: string;
   role: Role;
+  customPermissions?: string[] | null;
 }
 
 const ROLE_META: Record<Role, { label: string; color: string; bgColor: string; borderColor: string; description: string }> = {
@@ -118,6 +119,9 @@ export default function Users() {
   const [resetPasswordId, setResetPasswordId] = useState<string | null>(null);
   const [newResetPassword, setNewResetPassword] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [selectedPermUserId, setSelectedPermUserId] = useState<string | null>(null);
+  const [pendingPermissions, setPendingPermissions] = useState<string[]>([]);
+  const [permSaving, setPermSaving] = useState(false);
   const submittingRef = useRef(false);
   const { toast } = useToast();
 
@@ -229,6 +233,76 @@ export default function Users() {
   const hasPermissionForRole = (role: Role, permKey: string): boolean => {
     const allowed = PERMISSIONS[permKey as keyof typeof PERMISSIONS] as readonly string[];
     return allowed?.includes(role) ?? false;
+  };
+
+  const getRoleDefaultPermissions = (role: Role): string[] =>
+    Object.keys(PERMISSIONS).filter((p) => hasPermissionForRole(role, p));
+
+  const handleSelectPermUser = (userId: string) => {
+    const u = users.find((x) => x.id === userId);
+    if (!u) return;
+    setSelectedPermUserId(userId);
+    if (u.customPermissions && Array.isArray(u.customPermissions)) {
+      setPendingPermissions([...u.customPermissions]);
+    } else {
+      setPendingPermissions(getRoleDefaultPermissions(u.role));
+    }
+  };
+
+  const handleTogglePerm = (permKey: string) => {
+    setPendingPermissions((prev) =>
+      prev.includes(permKey) ? prev.filter((p) => p !== permKey) : [...prev, permKey]
+    );
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedPermUserId) return;
+    setPermSaving(true);
+    try {
+      const res = await fetch(`/api/users/${selectedPermUserId}/permissions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ permissions: pendingPermissions }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUsers((prev) => prev.map((u) => u.id === selectedPermUserId ? { ...u, customPermissions: updated.customPermissions } : u));
+        toast({ title: "تم الحفظ", description: "تم حفظ الصلاحيات المخصصة بنجاح" });
+      } else {
+        toast({ title: "خطأ", description: "فشل حفظ الصلاحيات", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "خطأ", description: "فشل الاتصال", variant: "destructive" });
+    } finally {
+      setPermSaving(false);
+    }
+  };
+
+  const handleResetPermissions = async () => {
+    if (!selectedPermUserId) return;
+    setPermSaving(true);
+    try {
+      const res = await fetch(`/api/users/${selectedPermUserId}/permissions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ permissions: null }),
+      });
+      if (res.ok) {
+        await res.json();
+        const targetUser = users.find((x) => x.id === selectedPermUserId);
+        setUsers((prev) => prev.map((x) => x.id === selectedPermUserId ? { ...x, customPermissions: null } : x));
+        if (targetUser) setPendingPermissions(getRoleDefaultPermissions(targetUser.role));
+        toast({ title: "تمت الإعادة", description: "تمت إعادة تعيين الصلاحيات للافتراضية" });
+      } else {
+        toast({ title: "خطأ", description: "فشل إعادة التعيين", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "خطأ", description: "فشل الاتصال", variant: "destructive" });
+    } finally {
+      setPermSaving(false);
+    }
   };
 
   if (loading) {
@@ -468,102 +542,187 @@ export default function Users() {
       )}
 
       {activeTab === "permissions" && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Eye className="w-4 h-4 text-primary" />
-                مصفوفة الصلاحيات الكاملة
-              </CardTitle>
-              <CardDescription>نظرة شاملة على جميع الصلاحيات المتاحة لكل دور في النظام</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40">
-                      <th className="text-right px-4 py-3 font-semibold text-muted-foreground w-64">الصلاحية</th>
-                      {(["manager", "dentist", "receptionist"] as Role[]).map((role) => {
-                        const meta = ROLE_META[role];
-                        return (
-                          <th key={role} className="text-center px-4 py-3 font-semibold">
-                            <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs", meta.bgColor, meta.color)}>
-                              {role === "manager" && <Shield className="w-3 h-3" />}
-                              {role === "dentist" && <UserCog className="w-3 h-3" />}
-                              {role === "receptionist" && <Users className="w-3 h-3" />}
-                              {meta.label}
-                            </span>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PERMISSION_GROUPS.map((group, gi) => (
-                      <>
-                        <tr key={`group-${gi}`} className="bg-muted/20">
-                          <td colSpan={4} className="px-4 py-2 font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-                            <span className="flex items-center gap-2">
-                              <group.icon className="w-3.5 h-3.5" />
-                              {group.group}
-                            </span>
-                          </td>
-                        </tr>
-                        {group.items.map((item, ii) => (
-                          <tr key={item.key} className={cn("border-b transition-colors hover:bg-muted/20", ii % 2 === 0 ? "" : "bg-muted/5")}>
-                            <td className="px-4 py-2.5 text-sm font-medium">{item.label}</td>
-                            {(["manager", "dentist", "receptionist"] as Role[]).map((role) => {
-                              const allowed = hasPermissionForRole(role, item.key);
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* User Selector Column */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-muted-foreground px-1 flex items-center gap-2">
+              <Sliders className="w-4 h-4" />
+              اختر مستخدماً لتعديل صلاحياته
+            </p>
+            {users.filter((u) => u.role !== "manager").length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                  لا يوجد مستخدمون قابلون للتخصيص
+                </CardContent>
+              </Card>
+            ) : (
+              users.filter((u) => u.role !== "manager").map((u) => {
+                const meta = ROLE_META[u.role];
+                const hasCustom = u.customPermissions && Array.isArray(u.customPermissions);
+                const isSelected = selectedPermUserId === u.id;
+                return (
+                  <button
+                    key={u.id}
+                    className={cn(
+                      "w-full text-right rounded-xl border px-4 py-3 transition-all hover:border-primary/50 hover:bg-muted/30",
+                      isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card"
+                    )}
+                    onClick={() => handleSelectPermUser(u.id)}
+                    data-testid={`button-select-perm-user-${u.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0", meta.bgColor, meta.color)}>
+                        {u.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{u.username}</p>
+                        <p className={cn("text-[11px]", meta.color)}>{meta.label}</p>
+                      </div>
+                      {hasCustom && (
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-primary/40 text-primary shrink-0">
+                          مخصص
+                        </Badge>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+
+            {/* Manager note */}
+            {users.filter((u) => u.role === "manager").length > 0 && (
+              <div className="mt-4 pt-3 border-t">
+                <p className="text-xs text-muted-foreground px-1 mb-2">المدراء (صلاحيات كاملة دائماً)</p>
+                {users.filter((u) => u.role === "manager").map((u) => (
+                  <div key={u.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-300">{u.username}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Permission Editor Column */}
+          <div className="lg:col-span-2">
+            {!selectedPermUserId ? (
+              <Card className="h-full border-dashed flex items-center justify-center min-h-64">
+                <CardContent className="text-center text-muted-foreground py-12">
+                  <Sliders className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="font-medium">اختر مستخدماً من القائمة</p>
+                  <p className="text-sm mt-1">لعرض وتعديل صلاحياته المخصصة</p>
+                </CardContent>
+              </Card>
+            ) : (() => {
+              const selUser = users.find((u) => u.id === selectedPermUserId);
+              if (!selUser) return null;
+              const hasCustom = selUser.customPermissions && Array.isArray(selUser.customPermissions);
+              const meta = ROLE_META[selUser.role];
+              const totalPerms = Object.keys(PERMISSIONS).length;
+              return (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm", meta.bgColor, meta.color)}>
+                          {selUser.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">{selUser.username}</CardTitle>
+                          <CardDescription className="flex items-center gap-2 mt-0.5">
+                            <span>{meta.label}</span>
+                            {hasCustom ? (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-primary/50 text-primary">
+                                صلاحيات مخصصة • {pendingPermissions.length} من {totalPerms}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-muted-foreground">
+                                افتراضية للدور • {pendingPermissions.length} من {totalPerms}
+                              </Badge>
+                            )}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {hasCustom && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs h-8"
+                            onClick={handleResetPermissions}
+                            disabled={permSaving}
+                            data-testid="button-reset-to-defaults"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            إعادة للافتراضي
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          className="gap-1.5 text-xs h-8"
+                          onClick={handleSavePermissions}
+                          disabled={permSaving}
+                          data-testid="button-save-permissions"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {permSaving ? "جاري الحفظ..." : "حفظ الصلاحيات"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {!hasCustom && (
+                      <div className="mb-4 px-3 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                        <Eye className="w-3.5 h-3.5 shrink-0" />
+                        يستخدم حالياً صلاحيات الدور الافتراضية. اضغط «حفظ» لتطبيق صلاحيات مخصصة.
+                      </div>
+                    )}
+                    <div className="space-y-4">
+                      {PERMISSION_GROUPS.map((group) => (
+                        <div key={group.group}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <group.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.group}</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {group.items.map((item) => {
+                              const checked = pendingPermissions.includes(item.key);
+                              const isDefault = hasPermissionForRole(selUser.role, item.key);
                               return (
-                                <td key={role} className="px-4 py-2.5 text-center">
-                                  {allowed ? (
-                                    <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400 mx-auto" />
-                                  ) : (
-                                    <XCircle className="w-5 h-5 text-muted-foreground/30 mx-auto" />
+                                <button
+                                  key={item.key}
+                                  className={cn(
+                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm text-right transition-all",
+                                    checked
+                                      ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-200"
+                                      : "border-border hover:border-muted-foreground/40 text-muted-foreground hover:bg-muted/30"
                                   )}
-                                </td>
+                                  onClick={() => handleTogglePerm(item.key)}
+                                  data-testid={`toggle-perm-${item.key}`}
+                                >
+                                  <div className={cn(
+                                    "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                                    checked
+                                      ? "border-green-500 bg-green-500 dark:border-green-400 dark:bg-green-400"
+                                      : "border-muted-foreground/30 bg-transparent"
+                                  )}>
+                                    {checked && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                  <span className="flex-1 font-medium">{item.label}</span>
+                                  {!hasCustom && isDefault && (
+                                    <span className="text-[10px] text-muted-foreground/60 shrink-0">افتراضي</span>
+                                  )}
+                                </button>
                               );
                             })}
-                          </tr>
-                        ))}
-                      </>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {(["manager", "dentist", "receptionist"] as Role[]).map((role) => {
-              const meta = ROLE_META[role];
-              const totalPerms = Object.keys(PERMISSIONS).length;
-              const allowedPerms = Object.keys(PERMISSIONS).filter(p => hasPermissionForRole(role, p)).length;
-              return (
-                <Card key={role} className={cn("border", meta.borderColor)}>
-                  <CardContent className="pt-5 pb-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-sm", meta.bgColor)}>
-                        {role === "manager" && <Shield className={cn("w-5 h-5", meta.color)} />}
-                        {role === "dentist" && <UserCog className={cn("w-5 h-5", meta.color)} />}
-                        {role === "receptionist" && <Users className={cn("w-5 h-5", meta.color)} />}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{meta.label}</p>
-                        <p className="text-xs text-muted-foreground">{allowedPerms} من {totalPerms} صلاحية</p>
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className={cn("h-2 rounded-full transition-all", role === "manager" ? "bg-amber-500" : role === "dentist" ? "bg-teal-500" : "bg-blue-500")}
-                        style={{ width: `${(allowedPerms / totalPerms) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">{meta.description}</p>
                   </CardContent>
                 </Card>
               );
-            })}
+            })()}
           </div>
         </div>
       )}

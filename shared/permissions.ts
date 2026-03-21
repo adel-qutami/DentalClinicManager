@@ -51,3 +51,5 @@ export function getRoleLabel(role: Role): string {
   };
   return labels[role];
 }
+
+export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
