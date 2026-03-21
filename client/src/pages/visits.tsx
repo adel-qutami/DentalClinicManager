@@ -43,6 +43,9 @@ export default function Visits() {
   const [visitPayments, setVisitPayments] = useState<Payment[]>([]);
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
   const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
 
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -104,35 +107,40 @@ export default function Visits() {
   }
 
   async function onSubmit(values: z.infer<typeof visitSchema>) {
-    const itemsWithTeeth = values.items.map(item => {
-      const service = services?.find(s => s.id === item.serviceId);
-      if (service?.requiresTeethSelection) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const itemsWithTeeth = values.items.map(item => {
+        const service = services?.find(s => s.id === item.serviceId);
+        if (service?.requiresTeethSelection) {
+          return {
+            serviceId: item.serviceId,
+            price: item.price,
+            quantity: item.quantity,
+            toothNumbers: item.toothNumbers || [],
+            jawType: item.jawType || "single_tooth",
+          };
+        }
         return {
           serviceId: item.serviceId,
           price: item.price,
           quantity: item.quantity,
-          toothNumbers: item.toothNumbers || [],
-          jawType: item.jawType || "single_tooth",
         };
+      });
+      const result = await addVisit({
+        ...values,
+        items: itemsWithTeeth,
+        totalAmount,
+        paidAmount: values.paidAmount || 0,
+      });
+      if (result.success) {
+        resetAndGoToList();
+        toast({ title: "تم تسجيل الزيارة", description: "تم حفظ بيانات الزيارة والدفع بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
       }
-      return {
-        serviceId: item.serviceId,
-        price: item.price,
-        quantity: item.quantity,
-      };
-    });
-
-    const result = await addVisit({
-      ...values,
-      items: itemsWithTeeth,
-      totalAmount,
-      paidAmount: values.paidAmount || 0
-    });
-    if (result.success) {
-      resetAndGoToList();
-      toast({ title: "تم تسجيل الزيارة", description: "تم حفظ بيانات الزيارة والدفع بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -155,36 +163,41 @@ export default function Visits() {
   };
 
   async function onEditSubmit(values: z.infer<typeof visitSchema>) {
-    if (!selectedVisit) return;
-    const editItemsWithTeeth = values.items.map(item => {
-      const service = services?.find(s => s.id === item.serviceId);
-      if (service?.requiresTeethSelection) {
+    if (!selectedVisit || isEditSubmitting) return;
+    setIsEditSubmitting(true);
+    try {
+      const editItemsWithTeeth = values.items.map(item => {
+        const service = services?.find(s => s.id === item.serviceId);
+        if (service?.requiresTeethSelection) {
+          return {
+            serviceId: item.serviceId,
+            price: item.price,
+            quantity: item.quantity,
+            toothNumbers: item.toothNumbers || [],
+            jawType: item.jawType || "single_tooth",
+          };
+        }
         return {
           serviceId: item.serviceId,
           price: item.price,
           quantity: item.quantity,
-          toothNumbers: item.toothNumbers || [],
-          jawType: item.jawType || "single_tooth",
         };
-      }
-      return {
-        serviceId: item.serviceId,
-        price: item.price,
-        quantity: item.quantity,
-      };
-    });
+      });
 
-    const result = await updateVisit(selectedVisit.id, {
-      doctorName: values.doctorName,
-      date: values.date,
-      totalAmount: editTotalAmount,
-      items: editItemsWithTeeth,
-    } as any);
-    if (result.success) {
-      resetAndGoToList();
-      toast({ title: "تم تعديل الزيارة", description: "تم حفظ التعديلات بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      const result = await updateVisit(selectedVisit.id, {
+        doctorName: values.doctorName,
+        date: values.date,
+        totalAmount: editTotalAmount,
+        items: editItemsWithTeeth,
+      } as any);
+      if (result.success) {
+        resetAndGoToList();
+        toast({ title: "تم تعديل الزيارة", description: "تم حفظ التعديلات بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
+    } finally {
+      setIsEditSubmitting(false);
     }
   }
 
@@ -217,7 +230,7 @@ export default function Visits() {
   };
 
   const handleAddPayment = async () => {
-    if (!selectedVisit || !newPaymentAmount) return;
+    if (!selectedVisit || !newPaymentAmount || isPaymentSubmitting) return;
 
     const paymentAmount = parseFloat(newPaymentAmount);
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
@@ -231,18 +244,23 @@ export default function Visits() {
       return;
     }
 
-    const result = await addPayment(selectedVisit.id, newPaymentDate, paymentAmount);
-    if (result.success) {
-      setNewPaymentAmount("");
-      setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-      const updatedVisit = visits.find(v => v.id === selectedVisit.id);
-      if (updatedVisit) {
-        setSelectedVisit(updatedVisit);
+    setIsPaymentSubmitting(true);
+    try {
+      const result = await addPayment(selectedVisit.id, newPaymentDate, paymentAmount);
+      if (result.success) {
+        setNewPaymentAmount("");
+        setNewPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+        const updatedVisit = visits.find(v => v.id === selectedVisit.id);
+        if (updatedVisit) {
+          setSelectedVisit(updatedVisit);
+        }
+        await loadPayments(selectedVisit.id);
+        toast({ title: "تم تسجيل الدفعة بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
       }
-      await loadPayments(selectedVisit.id);
-      toast({ title: "تم تسجيل الدفعة بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    } finally {
+      setIsPaymentSubmitting(false);
     }
   };
 
@@ -542,7 +560,7 @@ export default function Visits() {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1" data-testid="button-save-visit">حفظ وإنهاء الزيارة</Button>
+                  <Button type="submit" className="flex-1" disabled={isSubmitting} data-testid="button-save-visit">{isSubmitting ? "جاري الحفظ..." : "حفظ وإنهاء الزيارة"}</Button>
                   <Button type="button" variant="outline" onClick={resetAndGoToList} data-testid="button-cancel-visit">إلغاء</Button>
                 </div>
               </CardContent>
@@ -759,7 +777,7 @@ export default function Visits() {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1" data-testid="button-save-edit-visit">حفظ التعديلات</Button>
+                  <Button type="submit" className="flex-1" disabled={isEditSubmitting} data-testid="button-save-edit-visit">{isEditSubmitting ? "جاري الحفظ..." : "حفظ التعديلات"}</Button>
                   <Button type="button" variant="outline" onClick={resetAndGoToList}>إلغاء</Button>
                 </div>
               </CardContent>

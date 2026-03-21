@@ -32,6 +32,7 @@ export default function Services() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof serviceSchema>>({
@@ -44,25 +45,31 @@ export default function Services() {
   });
 
   async function onSubmit(values: z.infer<typeof serviceSchema>) {
-    if (editingId) {
-      const result = await updateService(editingId, values);
-      if (result.success) {
-        toast({ title: "تم التحديث", description: "تم تحديث الخدمة بنجاح" });
-        setEditingId(null);
-        setShowForm(false);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (editingId) {
+        const result = await updateService(editingId, values);
+        if (result.success) {
+          toast({ title: "تم التحديث", description: "تم تحديث الخدمة بنجاح" });
+          setEditingId(null);
+          setShowForm(false);
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        const result = await addService(values);
+        if (result.success) {
+          toast({ title: "تمت العملية بنجاح", description: "تم إضافة الخدمة الجديدة" });
+          setShowForm(false);
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       }
-    } else {
-      const result = await addService(values);
-      if (result.success) {
-        toast({ title: "تمت العملية بنجاح", description: "تم إضافة الخدمة الجديدة" });
-        setShowForm(false);
-      } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-      }
+      form.reset();
+    } finally {
+      setIsSubmitting(false);
     }
-    form.reset();
   }
 
   function handleEdit(service: Service) {
@@ -169,7 +176,7 @@ export default function Services() {
                   )}
                 />
                 <div className="flex gap-3 pt-4">
-                  <Button type="submit" data-testid="button-save-service">{editingId ? "تحديث" : "إضافة"}</Button>
+                  <Button type="submit" disabled={isSubmitting} data-testid="button-save-service">{isSubmitting ? "جاري الحفظ..." : editingId ? "تحديث" : "إضافة"}</Button>
                   <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-service">
                     إلغاء
                   </Button>

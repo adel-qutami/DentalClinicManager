@@ -35,6 +35,7 @@ export default function Patients() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof patientSchema>>({
@@ -85,22 +86,28 @@ export default function Patients() {
   }
 
   async function onSubmit(values: z.infer<typeof patientSchema>) {
-    if (editingPatient) {
-      const result = await updatePatient(editingPatient.id, values);
-      if (result.success) {
-        closeForm();
-        toast({ title: "تم التحديث", description: "تم تحديث بيانات المريض بنجاح" });
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (editingPatient) {
+        const result = await updatePatient(editingPatient.id, values);
+        if (result.success) {
+          closeForm();
+          toast({ title: "تم التحديث", description: "تم تحديث بيانات المريض بنجاح" });
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        const result = await addPatient(values);
+        if (result.success) {
+          closeForm();
+          toast({ title: "تمت الإضافة", description: "تم إضافة ملف المريض الجديد" });
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       }
-    } else {
-      const result = await addPatient(values);
-      if (result.success) {
-        closeForm();
-        toast({ title: "تمت الإضافة", description: "تم إضافة ملف المريض الجديد" });
-      } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -257,7 +264,7 @@ export default function Patients() {
                   )}
                 />
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" data-testid="button-save-patient">{editingPatient ? "حفظ التعديلات" : "إضافة المريض"}</Button>
+                  <Button type="submit" disabled={isSubmitting} data-testid="button-save-patient">{isSubmitting ? "جاري الحفظ..." : editingPatient ? "حفظ التعديلات" : "إضافة المريض"}</Button>
                   <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-patient">إلغاء</Button>
                 </div>
               </form>

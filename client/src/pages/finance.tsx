@@ -62,6 +62,8 @@ export default function Finance() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
+  const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+  const [isWithdrawalSubmitting, setIsWithdrawalSubmitting] = useState(false);
   const { toast } = useToast();
 
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
@@ -108,24 +110,36 @@ export default function Finance() {
   }
 
   async function onExpenseSubmit(values: z.infer<typeof expenseSchema>) {
-    const result = await addExpense(values);
-    if (result.success) {
-      setShowExpenseForm(false);
-      form.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "مشتريات", type: "operational", notes: "" });
-      toast({ title: "تم تسجيل المصروف", description: "تم إضافة المصروف بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    if (isExpenseSubmitting) return;
+    setIsExpenseSubmitting(true);
+    try {
+      const result = await addExpense(values);
+      if (result.success) {
+        setShowExpenseForm(false);
+        form.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "مشتريات", type: "operational", notes: "" });
+        toast({ title: "تم تسجيل المصروف", description: "تم إضافة المصروف بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
+    } finally {
+      setIsExpenseSubmitting(false);
     }
   }
 
   async function onWithdrawalSubmit(values: z.infer<typeof expenseSchema>) {
-    const result = await addExpense(values);
-    if (result.success) {
-      setShowWithdrawalForm(false);
-      withdrawalForm.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "سحبيات", type: "withdrawal", notes: "" });
-      toast({ title: "تم تسجيل السحب", description: "تم إضافة السحب الشخصي بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+    if (isWithdrawalSubmitting) return;
+    setIsWithdrawalSubmitting(true);
+    try {
+      const result = await addExpense(values);
+      if (result.success) {
+        setShowWithdrawalForm(false);
+        withdrawalForm.reset({ title: "", amount: undefined as any, date: format(new Date(), "yyyy-MM-dd"), category: "سحبيات", type: "withdrawal", notes: "" });
+        toast({ title: "تم تسجيل السحب", description: "تم إضافة السحب الشخصي بنجاح" });
+      } else {
+        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+      }
+    } finally {
+      setIsWithdrawalSubmitting(false);
     }
   }
 
@@ -902,7 +916,7 @@ export default function Finance() {
                       </FormItem>
                     )} />
                     <div className="sm:col-span-2 lg:col-span-3 flex gap-2 pt-2">
-                      <Button type="submit" size="sm" data-testid="button-save-expense">حفظ المصروف</Button>
+                      <Button type="submit" size="sm" disabled={isExpenseSubmitting} data-testid="button-save-expense">{isExpenseSubmitting ? "جاري الحفظ..." : "حفظ المصروف"}</Button>
                       <Button type="button" variant="outline" size="sm" onClick={() => { setShowExpenseForm(false); form.reset(); }} data-testid="button-cancel-expense">إلغاء</Button>
                     </div>
                   </form>
@@ -1122,7 +1136,7 @@ export default function Finance() {
                       </FormItem>
                     )} />
                     <div className="flex items-end gap-2">
-                      <Button type="submit" size="sm" data-testid="button-save-withdrawal">تأكيد السحب</Button>
+                      <Button type="submit" size="sm" disabled={isWithdrawalSubmitting} data-testid="button-save-withdrawal">{isWithdrawalSubmitting ? "جاري الحفظ..." : "تأكيد السحب"}</Button>
                       <Button type="button" variant="outline" size="sm" onClick={() => { setShowWithdrawalForm(false); withdrawalForm.reset(); }} data-testid="button-cancel-withdrawal">إلغاء</Button>
                     </div>
                   </form>

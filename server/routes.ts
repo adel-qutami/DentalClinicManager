@@ -52,6 +52,21 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.post("/api/admin/seed", async (req, res) => {
+    const key = req.headers["x-seed-key"] || req.body?.seedKey;
+    const expectedKey = process.env.SEED_KEY || "dental-seed-2024-secure";
+    if (key !== expectedKey) {
+      return res.status(403).json({ message: "غير مصرح" });
+    }
+    try {
+      const { seedProductionData } = await import("./seed-data");
+      await seedProductionData();
+      return res.json({ success: true, message: "تمت إضافة البيانات بنجاح" });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error?.message || "فشل التهيئة" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = z

@@ -35,6 +35,7 @@ export default function Appointments() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
@@ -79,22 +80,28 @@ export default function Appointments() {
   }
 
   async function onSubmit(values: z.infer<typeof appointmentSchema>) {
-    if (editingAppt) {
-      const result = await updateAppointment(editingAppt.id, values);
-      if (result.success) {
-        closeForm();
-        toast({ title: "تم التحديث", description: "تم تحديث الموعد بنجاح" });
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (editingAppt) {
+        const result = await updateAppointment(editingAppt.id, values);
+        if (result.success) {
+          closeForm();
+          toast({ title: "تم التحديث", description: "تم تحديث الموعد بنجاح" });
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        const result = await addAppointment({ ...values, status: 'scheduled' });
+        if (result.success) {
+          closeForm();
+          toast({ title: "تم الحجز", description: "تم إضافة الموعد بنجاح" });
+        } else {
+          toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
+        }
       }
-    } else {
-      const result = await addAppointment({ ...values, status: 'scheduled' });
-      if (result.success) {
-        closeForm();
-        toast({ title: "تم الحجز", description: "تم إضافة الموعد بنجاح" });
-      } else {
-        toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -311,7 +318,7 @@ export default function Appointments() {
                   )}
                 />
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" data-testid="button-save-appointment">{editingAppt ? "حفظ التعديلات" : "حفظ الموعد"}</Button>
+                  <Button type="submit" disabled={isSubmitting} data-testid="button-save-appointment">{isSubmitting ? "جاري الحفظ..." : editingAppt ? "حفظ التعديلات" : "حفظ الموعد"}</Button>
                   <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-appointment">إلغاء</Button>
                 </div>
               </form>
