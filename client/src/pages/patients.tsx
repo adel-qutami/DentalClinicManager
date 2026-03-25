@@ -164,15 +164,15 @@ export default function Patients() {
 
       {deleteId && (
         <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="flex items-center justify-between gap-4 py-4">
+          <CardContent className="flex items-center justify-between gap-3 py-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
               <div>
                 <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذا المريض؟</p>
                 <p className="text-sm text-red-700 dark:text-red-400">لا يمكن التراجع عن هذه العملية</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <Button variant="destructive" size="sm" onClick={confirmDelete} data-testid="button-confirm-delete">حذف</Button>
               <Button variant="outline" size="sm" onClick={() => setDeleteId(null)} data-testid="button-cancel-delete">إلغاء</Button>
             </div>
@@ -431,7 +431,7 @@ export default function Patients() {
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4" data-testid="patients-pagination">
+        <div className="flex items-center justify-between gap-3 flex-wrap" data-testid="patients-pagination">
           <p className="text-sm text-muted-foreground">
             عرض {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredPatients.length)} من {filteredPatients.length}
           </p>
