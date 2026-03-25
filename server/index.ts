@@ -146,8 +146,10 @@ app.use((req, res, next) => {
 });
 
 async function requireAdminSession(req: Request, res: Response, next: NextFunction) {
+  // When mounted at /admin, Express strips the prefix — req.path is /login not /admin/login
+  const isLoginPage = req.path === "/login" || req.path === "/login/" || req.path === "/" || req.path === "";
   if (!req.session?.userId) {
-    if (req.path === "/admin/login" || req.path === "/admin/login/") {
+    if (isLoginPage) {
       return next();
     }
     return res.redirect("/admin/login");
