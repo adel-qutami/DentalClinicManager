@@ -18,26 +18,38 @@ import { z, ZodError } from "zod";
 import { sql as drizzleSql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import bcrypt from "bcryptjs";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
 
+const BCRYPT_ROUNDS = 12;
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 async function verifyPassword(stored: string, supplied: string): Promise<boolean> {
-  if (!stored.includes(".")) {
-    return stored === supplied;
+  if (stored.startsWith("$2")) {
+    return bcrypt.compare(supplied, stored);
   }
-  const [hashed, salt] = stored.split(".");
-  const buf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  const hashedBuf = Buffer.from(hashed, "hex");
-  if (buf.length !== hashedBuf.length) return false;
-  return timingSafeEqual(buf, hashedBuf);
+  if (stored.includes(".")) {
+    const [hashed, salt] = stored.split(".");
+    try {
+      const buf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+      const hashedBuf = Buffer.from(hashed, "hex");
+      if (buf.length !== hashedBuf.length) return false;
+      return timingSafeEqual(buf, hashedBuf);
+    } catch { return false; }
+  }
+  return stored === supplied;
+}
+
+async function upgradePasswordIfNeeded(userId: string, stored: string, plaintext: string): Promise<void> {
+  if (!stored.startsWith("$2")) {
+    const newHash = await hashPassword(plaintext);
+    await storage.updateUser(userId, { password: newHash });
+  }
 }
 
 function formatZodError(error: unknown): string {
@@ -148,7 +160,9 @@ export async function registerRoutes(
       if (!user || !(await verifyPassword(user.password, password))) {
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
       }
+      await upgradePasswordIfNeeded(user.id, user.password, password);
       req.session.userId = user.id;
+      req.session.save(() => {});
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {

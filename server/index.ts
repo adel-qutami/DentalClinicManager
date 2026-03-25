@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { autoSeedIfEmpty } from "./auto-seed";
+import { storage } from "./storage";
 
 declare module "express-session" {
   interface SessionData {
@@ -38,14 +39,16 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "dental-clinic-secret-key-2024",
+    name: "clinic_sid",
+    secret: process.env.SESSION_SECRET || "dental-clinic-2024-change-in-production",
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
       secure: isProduction,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "lax",
+      maxAge: 8 * 60 * 60 * 1000,
+      sameSite: isProduction ? "strict" : "lax",
     },
   }),
 );
@@ -87,6 +90,25 @@ app.use((req, res, next) => {
   next();
 });
 
+async function requireAdminSession(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId) {
+    if (req.path === "/admin/login" || req.path === "/admin/login/") {
+      return next();
+    }
+    return res.redirect("/admin/login");
+  }
+  try {
+    const user = await storage.getUser(req.session.userId);
+    if (!user || !user.isActive) {
+      req.session.destroy(() => {});
+      return res.redirect("/admin/login");
+    }
+    next();
+  } catch {
+    res.redirect("/admin/login");
+  }
+}
+
 (async () => {
   await registerRoutes(httpServer, app);
 
@@ -102,6 +124,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
+    app.use("/admin", requireAdminSession);
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
