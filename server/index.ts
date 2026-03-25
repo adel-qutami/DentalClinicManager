@@ -74,7 +74,7 @@ app.use(
           "ws:",
           "wss:",
         ],
-        frameSrc: ["'none'"],
+        frameSrc: ["https://maps.google.com"],
         objectSrc: ["'none'"],
         ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
       },

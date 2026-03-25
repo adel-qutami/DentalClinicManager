@@ -834,12 +834,22 @@
 
                         <div class="input-group">
                             <label class="block text-sm font-bold text-slate-500 dark:text-slate-400 mb-2">رقم الهاتف</label>
-                            <div class="relative">
-                                <input type="tel" id="phone"
-                                    class="input-field w-full px-4 py-4 pr-11 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:text-white text-base transition-all"
-                                    placeholder="أدخل رقم هاتفك">
-                                <i class="fa-solid fa-phone absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <div class="flex gap-0 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all">
+                                <select id="countryCode"
+                                    class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold px-3 py-4 border-0 focus:outline-none cursor-pointer shrink-0 appearance-none"
+                                    style="min-width:100px">
+                                    <option value="+967">🇾🇪 +967</option>
+                                    <option value="+966">🇸🇦 +966</option>
+                                </select>
+                                <div class="w-px bg-slate-200 dark:bg-slate-700 self-stretch"></div>
+                                <div class="relative flex-1">
+                                    <input type="tel" id="phone"
+                                        class="input-field w-full px-4 py-4 pl-10 bg-slate-50 dark:bg-slate-900/80 border-0 focus:outline-none dark:text-white text-base transition-all"
+                                        placeholder="7XXXXXXXX" dir="ltr" maxlength="9">
+                                    <i class="fa-solid fa-phone absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                </div>
                             </div>
+                            <p id="phoneError" class="hidden mt-1 text-xs text-red-500 font-bold">رقم الهاتف يجب أن يكون 9 أرقام يبدأ بـ 7</p>
                         </div>
 
                         <div class="input-group">
@@ -1066,10 +1076,29 @@
                 }
             });
 
+            document.getElementById('phone').addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '').slice(0, 9);
+                const phoneError = document.getElementById('phoneError');
+                if (this.value && (this.value.length !== 9 || !this.value.startsWith('7'))) {
+                    phoneError.classList.remove('hidden');
+                } else {
+                    phoneError.classList.add('hidden');
+                }
+            });
+
             document.getElementById('bookingForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const name = document.getElementById('name').value.trim();
-                const phone = document.getElementById('phone') ? document.getElementById('phone').value.trim() : '';
+                const countryCode = document.getElementById('countryCode').value;
+                const phoneRaw = document.getElementById('phone').value.trim();
+                const phoneError = document.getElementById('phoneError');
+                if (phoneRaw && (phoneRaw.length !== 9 || !phoneRaw.startsWith('7'))) {
+                    phoneError.classList.remove('hidden');
+                    document.getElementById('phone').focus();
+                    return;
+                }
+                phoneError.classList.add('hidden');
+                const phone = phoneRaw ? (countryCode + phoneRaw) : '';
                 const service = document.getElementById('service').value;
                 const appointmentDate = document.getElementById('appointmentDate').value;
                 const appointmentTime = document.getElementById('appointmentTime').value;
