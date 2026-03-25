@@ -64,10 +64,12 @@ app.use(
           "blob:",
           "replit.com",
           "images.unsplash.com",
+          "images.pexels.com",
           "cdn-icons-png.flaticon.com",
           "www.transparenttextures.com",
           "grainy-gradients.vercel.app",
           "lh3.googleusercontent.com",
+          "img.freepik.com",
         ],
         connectSrc: [
           "'self'",
