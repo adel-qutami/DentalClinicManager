@@ -44,6 +44,7 @@ app.use(
           "'unsafe-eval'",
           "cdn.tailwindcss.com",
           "cdnjs.cloudflare.com",
+          "cdn.jsdelivr.net",
         ],
         styleSrc: [
           "'self'",
@@ -57,7 +58,17 @@ app.use(
           "fonts.gstatic.com",
           "cdnjs.cloudflare.com",
         ],
-        imgSrc: ["'self'", "data:", "blob:", "replit.com"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "replit.com",
+          "images.unsplash.com",
+          "cdn-icons-png.flaticon.com",
+          "www.transparenttextures.com",
+          "grainy-gradients.vercel.app",
+          "lh3.googleusercontent.com",
+        ],
         connectSrc: [
           "'self'",
           "ws:",

@@ -68,6 +68,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
+        [x-cloak] { display: none !important; }
+
         /* Theme Variables */
         :root {
             --color-brand-50: #f0fdfa;
@@ -243,7 +245,7 @@
             <i
                 class="fa-solid fa-gear text-xl text-slate-600 dark:text-slate-300 group-hover:text-brand-500 group-hover:rotate-90 transition-all duration-500"></i>
         </button>
-        <div x-show="showSettings" x-transition
+        <div x-cloak x-show="showSettings" x-transition
             class="absolute left-0 top-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 rounded-r-2xl rounded-bl-2xl shadow-2xl border border-slate-100 dark:border-slate-800 w-56">
             <div class="text-xs font-extrabold text-slate-400 mb-3 uppercase tracking-widest">تخصيص الألوان</div>
             <div class="flex justify-between gap-2 mb-6">
@@ -305,7 +307,7 @@
         </div>
     </nav>
 
-    <div x-show="mobileMenu" x-transition
+    <div x-cloak x-show="mobileMenu" x-transition
         class="fixed inset-0 z-50 bg-white/98 dark:bg-slate-950/98 backdrop-blur-xl lg:hidden flex flex-col items-center justify-center space-y-8">
         <button @click="mobileMenu = false" class="absolute top-8 right-8 text-2xl"><i
                 class="fa-solid fa-xmark"></i></button>
