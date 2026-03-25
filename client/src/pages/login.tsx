@@ -3,16 +3,12 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Stethoscope, LogIn, UserPlus, AlertCircle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Role } from "@/lib/store";
+import { Stethoscope, LogIn, AlertCircle } from "lucide-react";
 
 export default function Login() {
-  const { login, register } = useStore();
-  const [isRegister, setIsRegister] = useState(false);
+  const { login } = useStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("manager");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -20,11 +16,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-
-    const result = isRegister
-      ? await register(username, password, role)
-      : await login(username, password);
-
+    const result = await login(username, password);
     if (!result.success) {
       setError(result.error || "حدث خطأ");
     }
@@ -45,7 +37,7 @@ export default function Login() {
         <Card className="shadow-lg border-0">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-center" data-testid="text-login-title">
-              {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
+              تسجيل الدخول
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -74,21 +66,6 @@ export default function Login() {
                   data-testid="input-password"
                 />
               </div>
-              {isRegister && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">الدور</label>
-                  <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-                    <SelectTrigger className="h-11" data-testid="select-role">
-                      <SelectValue placeholder="اختر الدور" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manager">مدير العيادة</SelectItem>
-                      <SelectItem value="dentist">طبيب أسنان</SelectItem>
-                      <SelectItem value="receptionist">موظف استقبال</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive" data-testid="text-login-error">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -98,27 +75,11 @@ export default function Login() {
               <Button type="submit" className="w-full h-11 gap-2 text-sm" disabled={submitting} data-testid="button-login-submit">
                 {submitting ? (
                   <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                ) : isRegister ? (
-                  <UserPlus className="w-4 h-4" />
                 ) : (
                   <LogIn className="w-4 h-4" />
                 )}
-                {submitting ? "جاري..." : isRegister ? "إنشاء حساب" : "تسجيل الدخول"}
+                {submitting ? "جاري..." : "تسجيل الدخول"}
               </Button>
-              <div className="text-center">
-                <Button
-                  type="button"
-                  variant="link"
-                  className="text-xs"
-                  onClick={() => {
-                    setIsRegister(!isRegister);
-                    setError("");
-                  }}
-                  data-testid="button-toggle-register"
-                >
-                  {isRegister ? "لديك حساب؟ سجل دخولك" : "ليس لديك حساب؟ أنشئ حساباً جديداً"}
-                </Button>
-              </div>
             </form>
           </CardContent>
         </Card>
