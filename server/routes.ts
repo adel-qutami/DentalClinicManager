@@ -19,6 +19,7 @@ import { sql as drizzleSql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
 import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal } from "@shared/validation";
 
@@ -151,7 +152,16 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "محاولات دخول كثيرة، يرجى المحاولة بعد 15 دقيقة" },
+    skipSuccessfulRequests: true,
+  });
+
+  app.post("/api/auth/login", loginLimiter, async (req, res) => {
     try {
       const { username, password } = z
         .object({ username: z.string(), password: z.string() })
@@ -188,7 +198,7 @@ export async function registerRoutes(
     res.json(safeUser);
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", requireAuth, requirePermission("users_manage"), async (req, res) => {
     try {
       const { username, password, role } = z
         .object({
@@ -210,12 +220,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/patients", async (req, res) => {
+  app.get("/api/patients", requireAuth, async (req, res) => {
     const patients = await storage.getAllPatients();
     res.json(patients);
   });
 
-  app.get("/api/patients/:id", async (req, res) => {
+  app.get("/api/patients/:id", requireAuth, async (req, res) => {
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       res.status(404).json({ message: "Patient not found" });
@@ -224,7 +234,7 @@ export async function registerRoutes(
     res.json(patient);
   });
 
-  app.post("/api/patients", async (req, res) => {
+  app.post("/api/patients", requireAuth, async (req, res) => {
     try {
       const validated = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validated);
@@ -243,7 +253,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/patients/:id", async (req, res) => {
+  app.patch("/api/patients/:id", requireAuth, async (req, res) => {
     try {
       const oldPatient = await storage.getPatient(req.params.id);
       const validated = insertPatientSchema.partial().parse(req.body);
@@ -263,7 +273,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/patients/:id", async (req, res) => {
+  app.delete("/api/patients/:id", requireAuth, async (req, res) => {
     try {
       const oldPatient = await storage.getPatient(req.params.id);
       if (!oldPatient) {
@@ -288,12 +298,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/services", async (req, res) => {
+  app.get("/api/services", requireAuth, async (req, res) => {
     const services = await storage.getAllServices();
     res.json(services);
   });
 
-  app.get("/api/services/:id", async (req, res) => {
+  app.get("/api/services/:id", requireAuth, async (req, res) => {
     const service = await storage.getService(req.params.id);
     if (!service) {
       res.status(404).json({ message: "Service not found" });
@@ -302,7 +312,7 @@ export async function registerRoutes(
     res.json(service);
   });
 
-  app.post("/api/services", async (req, res) => {
+  app.post("/api/services", requireAuth, async (req, res) => {
     try {
       const validated = insertServiceSchema.parse(req.body);
       const service = await storage.createService(validated);
@@ -320,7 +330,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/services/:id", async (req, res) => {
+  app.patch("/api/services/:id", requireAuth, async (req, res) => {
     try {
       const oldService = await storage.getService(req.params.id);
       const validated = insertServiceSchema.partial().parse(req.body);
@@ -339,7 +349,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/services/:id", async (req, res) => {
+  app.delete("/api/services/:id", requireAuth, async (req, res) => {
     try {
       const oldService = await storage.getService(req.params.id);
       if (!oldService) {
@@ -364,12 +374,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/appointments", async (req, res) => {
+  app.get("/api/appointments", requireAuth, async (req, res) => {
     const appointments = await storage.getAllAppointments();
     res.json(appointments);
   });
 
-  app.get("/api/appointments/:id", async (req, res) => {
+  app.get("/api/appointments/:id", requireAuth, async (req, res) => {
     const appointment = await storage.getAppointment(req.params.id);
     if (!appointment) {
       res.status(404).json({ message: "Appointment not found" });
@@ -378,7 +388,7 @@ export async function registerRoutes(
     res.json(appointment);
   });
 
-  app.post("/api/appointments", async (req, res) => {
+  app.post("/api/appointments", requireAuth, async (req, res) => {
     try {
       const validated = insertAppointmentSchema.parse(req.body);
       const appointment = await storage.createAppointment(validated);
@@ -388,7 +398,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/appointments/:id", async (req, res) => {
+  app.patch("/api/appointments/:id", requireAuth, async (req, res) => {
     try {
       const validated = insertAppointmentSchema.partial().parse(req.body);
       const appointment = await storage.updateAppointment(req.params.id, validated);
@@ -398,7 +408,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/appointments/:id", async (req, res) => {
+  app.delete("/api/appointments/:id", requireAuth, async (req, res) => {
     try {
       const oldAppt = await storage.getAppointment(req.params.id);
       if (!oldAppt) {
@@ -419,12 +429,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/visits", async (req, res) => {
+  app.get("/api/visits", requireAuth, async (req, res) => {
     const visits = await storage.getAllVisits();
     res.json(visits);
   });
 
-  app.get("/api/visits/:id", async (req, res) => {
+  app.get("/api/visits/:id", requireAuth, async (req, res) => {
     const visit = await storage.getVisit(req.params.id);
     if (!visit) {
       res.status(404).json({ message: "Visit not found" });
@@ -433,7 +443,7 @@ export async function registerRoutes(
     res.json(visit);
   });
 
-  app.post("/api/visits", async (req, res) => {
+  app.post("/api/visits", requireAuth, async (req, res) => {
     try {
       const { items, ...visitData } = req.body;
       const validatedItems = z.array(insertVisitItemSchema.omit({ visitId: true })).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items || []);
@@ -463,7 +473,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/visits/:id", async (req, res) => {
+  app.patch("/api/visits/:id", requireAuth, async (req, res) => {
     try {
       const { items, ...visitData } = req.body;
       const oldVisit = await storage.getVisit(req.params.id);
@@ -535,7 +545,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/visits/:id", async (req, res) => {
+  app.delete("/api/visits/:id", requireAuth, async (req, res) => {
     try {
       const oldVisit = await storage.getVisit(req.params.id);
       await storage.deleteVisit(req.params.id);
@@ -557,17 +567,17 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/visits/:visitId/payments", async (req, res) => {
+  app.get("/api/visits/:visitId/payments", requireAuth, async (req, res) => {
     const payments = await storage.getPaymentsForVisit(req.params.visitId);
     res.json(payments);
   });
 
-  app.get("/api/payments", async (req, res) => {
+  app.get("/api/payments", requireAuth, async (req, res) => {
     const payments = await storage.getAllPayments();
     res.json(payments);
   });
 
-  app.post("/api/payments", async (req, res) => {
+  app.post("/api/payments", requireAuth, async (req, res) => {
     try {
       const validated = z.object({
         visitId: z.string().min(1),
@@ -598,12 +608,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/expenses", async (req, res) => {
+  app.get("/api/expenses", requireAuth, async (req, res) => {
     const expenses = await storage.getAllExpenses();
     res.json(expenses);
   });
 
-  app.post("/api/expenses", async (req, res) => {
+  app.post("/api/expenses", requireAuth, async (req, res) => {
     try {
       const validated = insertExpenseSchema.parse(req.body);
       const expense = await storage.createExpense(validated);
@@ -621,7 +631,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/expenses/:id", async (req, res) => {
+  app.patch("/api/expenses/:id", requireAuth, async (req, res) => {
     try {
       const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
       const validated = insertExpenseSchema.partial().parse(req.body);
@@ -640,7 +650,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/expenses/:id", async (req, res) => {
+  app.delete("/api/expenses/:id", requireAuth, async (req, res) => {
     try {
       const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
       if (!oldExpense) {
@@ -711,7 +721,7 @@ export async function registerRoutes(
   });
 
 
-  app.get("/api/reports/financial", async (req, res) => {
+  app.get("/api/reports/financial", requireAuth, async (req, res) => {
     try {
       const filters = {
         startDate: req.query.startDate as string | undefined,

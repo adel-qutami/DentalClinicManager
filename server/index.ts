@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -24,8 +25,19 @@ declare module "http" {
 const isProduction = process.env.NODE_ENV === "production";
 
 if (isProduction) {
+  if (!process.env.SESSION_SECRET) {
+    console.error("[SECURITY] SESSION_SECRET environment variable is not set. Refusing to start in production.");
+    process.exit(1);
+  }
   app.set("trust proxy", 1);
 }
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 app.use(
   express.json({
@@ -40,7 +52,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(
   session({
     name: "clinic_sid",
-    secret: process.env.SESSION_SECRET || "dental-clinic-2024-change-in-production",
+    secret: process.env.SESSION_SECRET || "dental-clinic-dev-secret-do-not-use-in-prod",
     resave: false,
     saveUninitialized: false,
     rolling: true,
