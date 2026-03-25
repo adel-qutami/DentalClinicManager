@@ -257,7 +257,7 @@ export default function Dashboard() {
                 <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">{todayAppointments.length}</span>
               )}
             </CardTitle>
-            <Link href="/appointments">
+            <Link href="/admin/appointments">
               <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
                 عرض الكل
                 <ArrowLeft className="w-3 h-3" />
@@ -279,7 +279,7 @@ export default function Dashboard() {
                     <div
                       key={appt.id}
                       className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/40 transition-all cursor-pointer group"
-                      onClick={() => navigate(`/patients/${appt.patientId}`)}
+                      onClick={() => navigate(`/admin/patients/${appt.patientId}`)}
                       data-testid={`appointment-card-${appt.id}`}
                     >
                       <div className="flex items-center gap-3">
@@ -312,7 +312,7 @@ export default function Dashboard() {
                   );
                 })}
                 {todayAppointments.length > 7 && (
-                  <Link href="/appointments">
+                  <Link href="/admin/appointments">
                     <p className="text-center text-xs text-primary hover:underline pt-1 cursor-pointer">و {todayAppointments.length - 7} مواعيد أخرى...</p>
                   </Link>
                 )}
@@ -359,7 +359,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <Link href="/finance">
+                <Link href="/admin/finance">
                   <Button variant="secondary" size="sm" className="w-full bg-white/15 hover:bg-white/25 text-white border-none gap-1 h-8 text-xs">
                     عرض التقارير
                     <ArrowLeft className="w-3 h-3" />

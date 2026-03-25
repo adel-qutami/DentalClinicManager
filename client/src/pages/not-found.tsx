@@ -16,7 +16,7 @@ export default function NotFound() {
             عذراً، الصفحة التي تحاول الوصول إليها غير موجودة أو تم نقلها.
           </p>
           
-          <Link href="/">
+          <Link href="/admin">
             <Button className="w-full sm:w-auto">
               العودة للرئيسية
             </Button>

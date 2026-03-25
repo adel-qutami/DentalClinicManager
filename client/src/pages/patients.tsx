@@ -327,7 +327,7 @@ export default function Patients() {
               </TableHeader>
               <TableBody>
                 {paginatedPatients.map((patient) => (
-                  <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`row-patient-${patient.id}`}>
+                  <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => navigate(`/admin/patients/${patient.id}`)} data-testid={`row-patient-${patient.id}`}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
@@ -377,7 +377,7 @@ export default function Patients() {
 
           <div className="md:hidden space-y-3">
             {paginatedPatients.map((patient) => (
-              <Card key={patient.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/patients/${patient.id}`)} data-testid={`card-patient-mobile-${patient.id}`}>
+              <Card key={patient.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/admin/patients/${patient.id}`)} data-testid={`card-patient-mobile-${patient.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">

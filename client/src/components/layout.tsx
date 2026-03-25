@@ -15,6 +15,7 @@ import {
   Home,
   PanelRightOpen,
   PanelRightClose,
+  Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -30,23 +31,24 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "الرئيسية", icon: LayoutDashboard },
-  { href: "/patients", label: "المرضى", icon: Users, permission: "patients_view" },
-  { href: "/appointments", label: "المواعيد", icon: Calendar, permission: "appointments_view" },
-  { href: "/visits", label: "الزيارات", icon: Stethoscope, permission: "visits_view" },
-  { href: "/services", label: "الخدمات", icon: Wrench, permission: "services_view" },
-  { href: "/finance", label: "المالية والتقارير", icon: Wallet, permission: "finance_view" },
-  { href: "/audit-log", label: "سجل التدقيق", icon: FileText, permission: "audit_view" },
-  { href: "/users", label: "إدارة المستخدمين", icon: Shield, permission: "users_manage" },
+  { href: "/admin", label: "الرئيسية", icon: LayoutDashboard },
+  { href: "/admin/patients", label: "المرضى", icon: Users, permission: "patients_view" },
+  { href: "/admin/appointments", label: "المواعيد", icon: Calendar, permission: "appointments_view" },
+  { href: "/admin/visits", label: "الزيارات", icon: Stethoscope, permission: "visits_view" },
+  { href: "/admin/services", label: "الخدمات", icon: Wrench, permission: "services_view" },
+  { href: "/admin/finance", label: "المالية والتقارير", icon: Wallet, permission: "finance_view" },
+  { href: "/admin/bookings", label: "حجوزات الموقع", icon: Globe, permission: undefined },
+  { href: "/admin/audit-log", label: "سجل التدقيق", icon: FileText, permission: "audit_view" },
+  { href: "/admin/users", label: "إدارة المستخدمين", icon: Shield, permission: "users_manage" },
 ];
 
 function Breadcrumb({ location }: { location: string }) {
   const current = navItems.find((item) => item.href === location);
-  if (!current || location === "/") return null;
+  if (!current || location === "/admin") return null;
 
   return (
     <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6" data-testid="breadcrumb">
-      <Link href="/" className="flex items-center gap-1 hover:text-foreground transition-colors" data-testid="link-breadcrumb-home">
+      <Link href="/admin" className="flex items-center gap-1 hover:text-foreground transition-colors" data-testid="link-breadcrumb-home">
         <Home className="w-3.5 h-3.5" />
         <span>الرئيسية</span>
       </Link>
@@ -140,7 +142,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <nav className="p-2 space-y-0.5 flex-1 overflow-y-auto">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location === item.href;
+            const isActive = item.href === "/admin" ? location === "/admin" : location.startsWith(item.href);
             return (
               <Link
                 key={item.href}

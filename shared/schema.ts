@@ -271,6 +271,30 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs)
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+export const publicBookings = pgTable("public_bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  service: text("service").notNull(),
+  appointmentDate: date("appointment_date").notNull(),
+  appointmentTime: text("appointment_time").notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertPublicBookingSchema = createInsertSchema(publicBookings)
+  .pick({ name: true, phone: true, service: true, appointmentDate: true, appointmentTime: true, notes: true })
+  .extend({
+    name: z.string().min(2, "الاسم مطلوب"),
+    service: z.string().min(1, "الخدمة مطلوبة"),
+    appointmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
+    appointmentTime: z.string().min(1, "الوقت مطلوب"),
+  });
+
+export type InsertPublicBooking = z.infer<typeof insertPublicBookingSchema>;
+export type PublicBooking = typeof publicBookings.$inferSelect;
+
 export const reminderLogs = pgTable("reminder_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   appointmentId: varchar("appointment_id").notNull().references(() => appointments.id),

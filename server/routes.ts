@@ -2,6 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import path from "path";
+import fs from "fs";
 import {
   insertPatientSchema,
   insertAppointmentSchema,
@@ -10,6 +12,7 @@ import {
   insertExpenseSchema,
   insertVisitItemSchema,
   insertExpenseCategorySchema,
+  insertPublicBookingSchema,
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { sql as drizzleSql } from "drizzle-orm";
@@ -87,6 +90,39 @@ export async function registerRoutes(
   try {
     await db.execute(drizzleSql`ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_permissions json`);
   } catch (_) {}
+
+  try {
+    await db.execute(drizzleSql`
+      CREATE TABLE IF NOT EXISTS public_bookings (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        phone text,
+        service text NOT NULL,
+        appointment_date date NOT NULL,
+        appointment_time text NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        notes text,
+        created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (_) {}
+
+  const smilecarePath = path.resolve(process.cwd(), "client/public/smilecare.html");
+  if (fs.existsSync(smilecarePath)) {
+    app.get("/", (_req, res) => {
+      res.sendFile(smilecarePath);
+    });
+  }
+
+  app.post("/api/public/bookings", async (req, res) => {
+    try {
+      const data = insertPublicBookingSchema.parse(req.body);
+      const booking = await storage.createPublicBooking(data);
+      return res.status(201).json(booking);
+    } catch (error) {
+      return res.status(400).json({ message: formatZodError(error) });
+    }
+  });
 
   app.post("/api/admin/seed", async (req, res) => {
     const key = req.headers["x-seed-key"] || req.body?.seedKey;
@@ -759,6 +795,34 @@ export async function registerRoutes(
       res.json(safeUser);
     } catch (error) {
       res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.get("/api/bookings", requireAuth, async (_req, res) => {
+    try {
+      const bookings = await storage.getAllPublicBookings();
+      res.json(bookings);
+    } catch (error) {
+      res.status(500).json({ message: "فشل جلب الحجوزات" });
+    }
+  });
+
+  app.patch("/api/bookings/:id/status", requireAuth, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(["pending", "confirmed", "cancelled"]) }).parse(req.body);
+      const booking = await storage.updatePublicBookingStatus(req.params.id, status);
+      res.json(booking);
+    } catch (error) {
+      res.status(400).json({ message: formatZodError(error) });
+    }
+  });
+
+  app.delete("/api/bookings/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deletePublicBooking(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "فشل حذف الحجز" });
     }
   });
 

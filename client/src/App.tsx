@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +17,7 @@ const Services = lazy(() => import("@/pages/services"));
 const UsersPage = lazy(() => import("@/pages/users"));
 const AuditLog = lazy(() => import("@/pages/audit-log"));
 const PatientProfile = lazy(() => import("@/pages/patient-profile"));
+const PublicBookingsPage = lazy(() => import("@/pages/public-bookings"));
 
 function PageLoader() {
   return (
@@ -52,43 +53,50 @@ function ProtectedRoute({ component: Component, permission }: { component: React
   );
 }
 
-function Router() {
+function AdminRouter() {
   return (
     <Layout>
       <Switch>
-        <Route path="/">
+        <Route path="/admin">
           {() => (
             <Suspense fallback={<PageLoader />}>
               <Dashboard />
             </Suspense>
           )}
         </Route>
-        <Route path="/patients">
+        <Route path="/admin/patients">
           {() => <ProtectedRoute component={Patients} permission="patients_view" />}
         </Route>
-        <Route path="/patients/:id">
+        <Route path="/admin/patients/:id">
           {(params: { id: string }) => (
             <Suspense fallback={<PageLoader />}>
               <PatientProfile id={params.id} />
             </Suspense>
           )}
         </Route>
-        <Route path="/appointments">
+        <Route path="/admin/appointments">
           {() => <ProtectedRoute component={Appointments} permission="appointments_view" />}
         </Route>
-        <Route path="/visits">
+        <Route path="/admin/visits">
           {() => <ProtectedRoute component={Visits} permission="visits_view" />}
         </Route>
-        <Route path="/services">
+        <Route path="/admin/services">
           {() => <ProtectedRoute component={Services} permission="services_view" />}
         </Route>
-        <Route path="/finance">
+        <Route path="/admin/finance">
           {() => <ProtectedRoute component={Finance} permission="finance_view" />}
         </Route>
-        <Route path="/users">
+        <Route path="/admin/bookings">
+          {() => (
+            <Suspense fallback={<PageLoader />}>
+              <PublicBookingsPage />
+            </Suspense>
+          )}
+        </Route>
+        <Route path="/admin/users">
           {() => <ProtectedRoute component={UsersPage} permission="users_manage" />}
         </Route>
-        <Route path="/audit-log">
+        <Route path="/admin/audit-log">
           {() => <ProtectedRoute component={AuditLog} permission="audit_view" />}
         </Route>
         <Route component={NotFound} />
@@ -99,6 +107,7 @@ function Router() {
 
 function AppContent() {
   const { user, authLoading } = useStore();
+  const [location] = useLocation();
 
   if (authLoading) {
     return (
@@ -111,11 +120,29 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  if (location === "/admin/login" || location === "/admin/login/") {
+    if (user) {
+      window.location.href = "/admin";
+      return null;
+    }
     return <Login />;
   }
 
-  return <Router />;
+  if (location.startsWith("/admin")) {
+    if (!user) {
+      return <Login />;
+    }
+    return <AdminRouter />;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-lg text-muted-foreground mb-4">جاري التوجيه...</p>
+        <a href="/" className="text-primary underline">العودة للموقع</a>
+      </div>
+    </div>
+  );
 }
 
 function App() {

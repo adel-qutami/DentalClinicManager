@@ -77,7 +77,7 @@ export default function PatientProfile({ id }: { id: string }) {
       <div className="text-center py-20">
         <User className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
         <h2 className="text-xl font-bold mb-2">المريض غير موجود</h2>
-        <Button variant="outline" onClick={() => navigate("/patients")}>
+        <Button variant="outline" onClick={() => navigate("/admin/patients")}>
           <ArrowRight className="w-4 h-4 ml-2" />
           العودة للمرضى
         </Button>
@@ -173,7 +173,7 @@ export default function PatientProfile({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/patients")} data-testid="button-back-to-patients">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/admin/patients")} data-testid="button-back-to-patients">
           <ArrowRight className="w-4 h-4 ml-1" />
           المرضى
         </Button>

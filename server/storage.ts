@@ -10,6 +10,7 @@ import {
   expenses,
   expenseCategories,
   auditLogs,
+  publicBookings,
   type User,
   type InsertUser,
   type Patient,
@@ -30,6 +31,8 @@ import {
   type InsertExpenseCategory,
   type AuditLog,
   type InsertAuditLog,
+  type PublicBooking,
+  type InsertPublicBooking,
 } from "@shared/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -86,6 +89,10 @@ export interface IStorage {
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
 
+  createPublicBooking(booking: InsertPublicBooking): Promise<PublicBooking>;
+  getAllPublicBookings(): Promise<PublicBooking[]>;
+  updatePublicBookingStatus(id: string, status: string): Promise<PublicBooking>;
+  deletePublicBooking(id: string): Promise<void>;
 
   getFinancialReport(filters: {
     startDate?: string;
@@ -513,6 +520,25 @@ export class DatabaseStorage implements IStorage {
       expenses: filteredExpenses,
       payments: allPayments,
     };
+  }
+
+  async createPublicBooking(booking: InsertPublicBooking): Promise<PublicBooking> {
+    const result = await db.insert(publicBookings).values({ ...booking, id: randomUUID() }).returning();
+    return result[0];
+  }
+
+  async getAllPublicBookings(): Promise<PublicBooking[]> {
+    return db.select().from(publicBookings).orderBy(desc(publicBookings.createdAt));
+  }
+
+  async updatePublicBookingStatus(id: string, status: string): Promise<PublicBooking> {
+    const result = await db.update(publicBookings).set({ status }).where(eq(publicBookings.id, id)).returning();
+    if (!result[0]) throw new Error("الحجز غير موجود");
+    return result[0];
+  }
+
+  async deletePublicBooking(id: string): Promise<void> {
+    await db.delete(publicBookings).where(eq(publicBookings.id, id));
   }
 }
 

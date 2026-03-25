@@ -1,8 +1,29 @@
-# Dental Clinic Management System
+# Dental Clinic Management System + SmileCare Public Site
 
 ## Overview
 
-A full-stack dental clinic management application built with React frontend and Express backend. The system manages patients, appointments, visits, services, and financial tracking for dental clinics. The interface is designed in Arabic (RTL) using the Tajawal font.
+A full-stack application with two parts:
+1. **Public Website** (`/`): SMILECARE — a beautiful Arabic dental clinic public site served as static HTML. Includes online booking form, doctor profile, services gallery, and clinic info.
+2. **Admin Dashboard** (`/admin`): A React-based management system for patients, appointments, visits, services, and financial tracking. Fully protected behind authentication.
+
+The interface is in Arabic (RTL) using the Tajawal font.
+
+## Routing Architecture
+
+- `GET /` → Serves `client/public/smilecare.html` (Express static route, has priority over Vite)
+- `GET /admin` → React admin dashboard (served by Vite catch-all)
+- `GET /admin/login` → Admin login page (React, no auth required)
+- `GET /admin/*` → Protected admin routes (require session auth)
+- `POST /api/public/bookings` → Public booking form endpoint (no auth)
+- `GET /api/bookings` → Admin: view all public bookings (auth required)
+
+## Public Site (SmileCare)
+
+- Static HTML at `client/public/smilecare.html`
+- Images at `client/public/smilecare-images/`
+- Booking form POSTs to `/api/public/bookings` and sends WhatsApp notification
+- Hidden admin link at bottom-left corner: 🔐 لوحة التحكم → `/admin`
+- Uses CDN: Tailwind, Alpine.js, Font Awesome, AOS animations
 
 ## User Preferences
 
