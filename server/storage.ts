@@ -77,6 +77,7 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
 
   getAllExpenses(): Promise<Expense[]>;
+  getExpense(id: string): Promise<Expense | undefined>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense>;
   deleteExpense(id: string): Promise<void>;
@@ -400,6 +401,11 @@ export class DatabaseStorage implements IStorage {
 
   async getAllExpenses(): Promise<Expense[]> {
     return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
+  }
+
+  async getExpense(id: string): Promise<Expense | undefined> {
+    const result = await db.select().from(expenses).where(eq(expenses.id, id));
+    return result[0];
   }
 
   async createExpense(expense: InsertExpense): Promise<Expense> {

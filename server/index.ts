@@ -143,7 +143,7 @@ async function requireAdminSession(req: Request, res: Response, next: NextFuncti
   }
   try {
     const user = await storage.getUser(req.session.userId);
-    if (!user || !user.isActive) {
+    if (!user) {
       req.session.destroy(() => {});
       return res.redirect("/admin/login");
     }

@@ -239,7 +239,7 @@ export async function registerRoutes(
       const validated = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validated);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "patient",
         entityId: patient.id,
         actionType: "create",
@@ -259,7 +259,7 @@ export async function registerRoutes(
       const validated = insertPatientSchema.partial().parse(req.body);
       const patient = await storage.updatePatient(req.params.id, validated);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "patient",
         entityId: req.params.id,
         actionType: "update",
@@ -317,7 +317,7 @@ export async function registerRoutes(
       const validated = insertServiceSchema.parse(req.body);
       const service = await storage.createService(validated);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "service",
         entityId: service.id,
         actionType: "create",
@@ -336,7 +336,7 @@ export async function registerRoutes(
       const validated = insertServiceSchema.partial().parse(req.body);
       const service = await storage.updateService(req.params.id, validated);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "service",
         entityId: req.params.id,
         actionType: "update",
@@ -550,7 +550,7 @@ export async function registerRoutes(
       const oldVisit = await storage.getVisit(req.params.id);
       await storage.deleteVisit(req.params.id);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "visit",
         entityId: req.params.id,
         actionType: "delete",
@@ -618,7 +618,7 @@ export async function registerRoutes(
       const validated = insertExpenseSchema.parse(req.body);
       const expense = await storage.createExpense(validated);
       await storage.createAuditLog({
-        userId: null,
+        userId: req.session?.userId ?? null,
         entityName: "expense",
         entityId: expense.id,
         actionType: "create",
@@ -633,7 +633,7 @@ export async function registerRoutes(
 
   app.patch("/api/expenses/:id", requireAuth, async (req, res) => {
     try {
-      const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
+      const oldExpense = await storage.getExpense(req.params.id);
       const validated = insertExpenseSchema.partial().parse(req.body);
       const expense = await storage.updateExpense(req.params.id, validated);
       await storage.createAuditLog({
@@ -652,7 +652,7 @@ export async function registerRoutes(
 
   app.delete("/api/expenses/:id", requireAuth, async (req, res) => {
     try {
-      const oldExpense = await storage.getAllExpenses().then(all => all.find(e => e.id === req.params.id));
+      const oldExpense = await storage.getExpense(req.params.id);
       if (!oldExpense) {
         return res.status(404).json({ message: "المصروف غير موجود" });
       }
@@ -780,8 +780,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:id", requireAuth, requirePermission("users_manage"), async (req, res) => {
     try {
-      const sessionUser = (req as any).user;
-      if (sessionUser?.id === req.params.id) {
+      if (req.session?.userId === req.params.id) {
         return res.status(400).json({ message: "لا يمكنك حذف حسابك الخاص" });
       }
       await storage.deleteUser(req.params.id);
