@@ -47,6 +47,7 @@ app.use(
           "cdn.tailwindcss.com",
           "cdnjs.cloudflare.com",
           "cdn.jsdelivr.net",
+          "unpkg.com",
         ],
         styleSrc: [
           "'self'",
@@ -54,6 +55,7 @@ app.use(
           "fonts.googleapis.com",
           "cdn.tailwindcss.com",
           "cdnjs.cloudflare.com",
+          "unpkg.com",
         ],
         fontSrc: [
           "'self'",
