@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 
 const patientSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
-  phone: z.string().min(10, "رقم الهاتف غير صحيح"),
+  phone: z.string().regex(/^(7\d{8}|0?7\d{8})$/, "رقم الهاتف يجب أن يبدأ بـ 7 ويتكون من 9 أرقام"),
   age: z.string().transform((val) => parseInt(val, 10)),
   gender: z.enum(["male", "female"]),
   notes: z.string().optional(),
@@ -212,7 +212,18 @@ export default function Patients() {
                       <FormItem>
                         <FormLabel>رقم الهاتف</FormLabel>
                         <FormControl>
-                          <Input placeholder="05xxxxxxxx" {...field} data-testid="input-patient-phone" />
+                          <div className="flex">
+                            <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-muted-foreground text-sm font-medium select-none">
+                              🇾🇪 +967
+                            </span>
+                            <Input
+                              placeholder="7xxxxxxxx"
+                              {...field}
+                              data-testid="input-patient-phone"
+                              className="rounded-r-none"
+                              dir="ltr"
+                            />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
