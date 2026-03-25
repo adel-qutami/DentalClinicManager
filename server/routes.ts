@@ -137,7 +137,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/seed", async (req, res) => {
+  app.post("/api/admin/seed", requireAuth, requirePermission("users_manage"), async (req, res) => {
     const key = req.headers["x-seed-key"] || req.body?.seedKey;
     const expectedKey = process.env.SEED_KEY || "dental-seed-2024-secure";
     if (key !== expectedKey) {

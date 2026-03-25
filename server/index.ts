@@ -34,8 +34,40 @@ if (isProduction) {
 
 app.use(
   helmet({
-    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "cdn.tailwindcss.com",
+          "cdnjs.cloudflare.com",
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "fonts.googleapis.com",
+          "cdn.tailwindcss.com",
+          "cdnjs.cloudflare.com",
+        ],
+        fontSrc: [
+          "'self'",
+          "fonts.gstatic.com",
+          "cdnjs.cloudflare.com",
+        ],
+        imgSrc: ["'self'", "data:", "blob:", "replit.com"],
+        connectSrc: [
+          "'self'",
+          "ws:",
+          "wss:",
+        ],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
+      },
+    },
   }),
 );
 
