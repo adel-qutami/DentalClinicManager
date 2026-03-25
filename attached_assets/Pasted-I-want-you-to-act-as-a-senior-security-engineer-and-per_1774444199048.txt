@@ -1,0 +1,81 @@
+I want you to act as a senior security engineer and perform a full security audit and disaster recovery analysis of my current full-stack application.
+
+Project context:
+- Full-stack app (React + Node.js + Express)
+- PostgreSQL database with ORM
+- Session-based authentication with HTTP-only cookies
+- Admin dashboard protected under /admin routes
+- Passwords hashed using bcrypt
+- Role-based access (admin only for now)
+
+Your tasks:
+
+1. 🔍 Security Audit
+- Analyze the entire system (frontend + backend + API)
+- Check authentication and session handling
+- Verify password hashing (bcrypt usage)
+- Check cookie security (HttpOnly, Secure, SameSite)
+- Ensure all /admin and /api/admin routes are protected
+- Detect possible vulnerabilities:
+  - SQL Injection
+  - XSS
+  - CSRF
+  - Broken authentication
+  - Open APIs
+  - Misconfigured headers
+
+2. 🛡️ Security Best Practices Check
+- Check if the system uses:
+  - rate limiting on login
+  - helmet or secure headers
+  - input validation & sanitization
+  - proper error handling (no sensitive leaks)
+- Identify missing protections
+
+3. 📊 Risk Report
+- List vulnerabilities by severity:
+  - Critical
+  - High
+  - Medium
+  - Low
+- Explain each issue clearly
+
+4. 🛠️ Fix Plan (Actionable)
+- For each issue:
+  - Explain the fix
+  - Provide code snippets
+  - Prioritize what should be fixed first
+
+5. 💾 Backup & Disaster Recovery Analysis
+- Check if backups exist:
+  - Database backups
+  - Code backups (Git)
+- Verify:
+  - backup frequency
+  - backup storage location (same server or external)
+- Detect risks (e.g. no backup, unsafe backup)
+
+6. 🚨 Disaster Recovery Plan
+If the system is hacked or corrupted:
+- Provide a step-by-step recovery plan:
+  - how to stop the attack
+  - how to restore clean version
+  - how to restore database safely
+  - how to rotate secrets and passwords
+
+7. 🔁 Automation Plan
+- Suggest how to automate:
+  - daily database backups
+  - logging & monitoring
+  - alerts for suspicious activity
+
+8. 🧠 Final Evaluation
+- Rate system security from 1 to 10
+- Say clearly:
+  - Is it production-ready?
+  - What must be fixed before launch?
+
+Important:
+- Be precise, practical, and actionable
+- Focus on real-world production security
+- Assume this system will be used by real clients
