@@ -24,12 +24,14 @@ declare module "http" {
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Always trust proxy — Replit runs behind a reverse proxy in all environments
+app.set("trust proxy", 1);
+
 if (isProduction) {
   if (!process.env.SESSION_SECRET) {
     console.error("[SECURITY] SESSION_SECRET environment variable is not set. Refusing to start in production.");
     process.exit(1);
   }
-  app.set("trust proxy", 1);
 }
 
 app.use(
