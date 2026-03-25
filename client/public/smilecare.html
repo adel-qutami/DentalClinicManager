@@ -939,16 +939,29 @@
                     <p class="text-slate-500 text-sm leading-relaxed mb-6">
                         عيادة متخصصة تقدم أرقى خدمات طب الأسنان التجميلي والعلاجي في بيئة معقمة ومريحة.
                     </p>
-                    <div class="flex gap-3">
-                        <a href="https://www.facebook.com/ahlamalrwni2030" target="_blank"
-                            class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all hover:-translate-y-1"><i
-                                class="fa-brands fa-facebook-f"></i></a>
-                        <a href="https://www.instagram.com/ahlamalrwni2030" target="_blank"
-                            class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all hover:-translate-y-1"><i
-                                class="fa-brands fa-instagram"></i></a>
-                        <a href="https://wa.me/967777480269" target="_blank"
-                            class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all hover:-translate-y-1"><i
-                                class="fa-brands fa-whatsapp"></i></a>
+                    <!-- Social Media Icons - Professional Style -->
+                    <div class="flex gap-3 mt-2">
+                        <!-- Facebook -->
+                        <a href="https://www.facebook.com/ahlamalrwni2030" target="_blank" title="Facebook"
+                            style="background:linear-gradient(135deg,#1877f2,#0d5bbf);box-shadow:0 4px 18px rgba(24,119,242,0.45);"
+                            class="group relative w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+                            <i class="fa-brands fa-facebook-f"></i>
+                            <span class="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Facebook</span>
+                        </a>
+                        <!-- Instagram -->
+                        <a href="https://www.instagram.com/ahlamalrwni2030" target="_blank" title="Instagram"
+                            style="background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4);box-shadow:0 4px 18px rgba(221,42,123,0.45);"
+                            class="group relative w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+                            <i class="fa-brands fa-instagram"></i>
+                            <span class="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Instagram</span>
+                        </a>
+                        <!-- WhatsApp -->
+                        <a href="https://wa.me/967777480269" target="_blank" title="WhatsApp"
+                            style="background:linear-gradient(135deg,#25d366,#128c7e);box-shadow:0 4px 18px rgba(37,211,102,0.45);"
+                            class="group relative w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+                            <i class="fa-brands fa-whatsapp"></i>
+                            <span class="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">WhatsApp</span>
+                        </a>
                     </div>
                 </div>
 
@@ -1090,7 +1103,53 @@
             });
         });
     </script>
-<div style="position:fixed;bottom:12px;left:12px;z-index:9999;"><a href="/admin" style="color:#64748b;font-size:11px;text-decoration:none;opacity:0.4;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">🔐 لوحة التحكم</a></div>
+
+    <!-- Floating Social Media Bar (Desktop) -->
+    <div id="social-sidebar" style="position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:999;flex-direction:column;gap:0;border-radius:0 12px 12px 0;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.25);display:none;">
+        <a href="https://www.facebook.com/ahlamalrwni2030" target="_blank" title="تابعنا على Facebook"
+           style="background:#1877f2;width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;transition:all 0.3s;position:relative;overflow:hidden;"
+           onmouseover="this.style.width='130px'" onmouseout="this.style.width='48px'">
+            <i class="fa-brands fa-facebook-f" style="flex-shrink:0;margin-left:10px;"></i>
+            <span style="font-size:12px;font-weight:700;font-family:Tajawal,sans-serif;white-space:nowrap;margin-right:8px;opacity:1;">Facebook</span>
+        </a>
+        <a href="https://www.instagram.com/ahlamalrwni2030" target="_blank" title="تابعنا على Instagram"
+           style="background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af);width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;transition:all 0.3s;position:relative;overflow:hidden;"
+           onmouseover="this.style.width='130px'" onmouseout="this.style.width='48px'">
+            <i class="fa-brands fa-instagram" style="flex-shrink:0;margin-left:10px;"></i>
+            <span style="font-size:12px;font-weight:700;font-family:Tajawal,sans-serif;white-space:nowrap;margin-right:8px;">Instagram</span>
+        </a>
+        <a href="https://wa.me/967777480269" target="_blank" title="تواصل عبر WhatsApp"
+           style="background:#25d366;width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;transition:all 0.3s;position:relative;overflow:hidden;"
+           onmouseover="this.style.width='130px'" onmouseout="this.style.width='48px'">
+            <i class="fa-brands fa-whatsapp" style="flex-shrink:0;margin-left:10px;"></i>
+            <span style="font-size:12px;font-weight:700;font-family:Tajawal,sans-serif;white-space:nowrap;margin-right:8px;">WhatsApp</span>
+        </a>
+    </div>
+
+    <!-- Floating WhatsApp Button (Mobile + Desktop) -->
+    <a href="https://wa.me/967777480269" target="_blank" title="تواصل معنا عبر واتساب"
+       style="position:fixed;bottom:24px;right:24px;z-index:9998;background:linear-gradient(135deg,#25d366,#128c7e);color:white;width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 24px rgba(37,211,102,0.55),0 0 0 4px rgba(37,211,102,0.15);animation:waFloat 2.5s ease-in-out infinite;text-decoration:none;">
+        <i class="fa-brands fa-whatsapp"></i>
+    </a>
+
+    <style>
+        @keyframes waFloat {
+            0%,100% { transform:translateY(0) scale(1); box-shadow:0 6px 24px rgba(37,211,102,0.55),0 0 0 4px rgba(37,211,102,0.15); }
+            50% { transform:translateY(-6px) scale(1.05); box-shadow:0 12px 32px rgba(37,211,102,0.65),0 0 0 8px rgba(37,211,102,0.1); }
+        }
+    </style>
+
+    <div style="position:fixed;bottom:12px;left:12px;z-index:9999;"><a href="/admin" style="color:#64748b;font-size:11px;text-decoration:none;opacity:0.4;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">🔐 لوحة التحكم</a></div>
+    <script>
+        (function() {
+            var sidebar = document.getElementById('social-sidebar');
+            function updateSidebar() {
+                if (sidebar) sidebar.style.display = window.innerWidth >= 1024 ? 'flex' : 'none';
+            }
+            updateSidebar();
+            window.addEventListener('resize', updateSidebar);
+        })();
+    </script>
 </body>
 
 </html>
