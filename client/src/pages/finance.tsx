@@ -520,7 +520,7 @@ export default function Finance() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <Card className="border-r-4 border-r-green-500 dark:border-r-green-400" data-testid="card-stat-income">
               <CardContent className="pt-5 pb-4 px-4">
                 <div className="flex items-center justify-between mb-2">

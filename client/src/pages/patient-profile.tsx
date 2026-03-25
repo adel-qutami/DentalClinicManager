@@ -65,7 +65,7 @@ export default function PatientProfile({ id }: { id: string }) {
       <div className="space-y-6 animate-pulse">
         <div className="h-8 w-32 bg-muted rounded-lg" />
         <div className="h-40 bg-muted rounded-xl" />
-        <div className="grid gap-4 grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-muted rounded-xl" />)}
         </div>
       </div>
@@ -469,8 +469,8 @@ export default function PatientProfile({ id }: { id: string }) {
               <p className="font-medium">لا توجد مواعيد مسجلة</p>
             </div>
           ) : (
-            <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-              <Table>
+            <div className="rounded-xl border bg-card overflow-x-auto overflow-hidden shadow-sm">
+              <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="text-right font-semibold">التاريخ</TableHead>
@@ -541,8 +541,8 @@ export default function PatientProfile({ id }: { id: string }) {
                 </CardContent>
               </Card>
 
-              <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-                <Table>
+              <div className="rounded-xl border bg-card overflow-x-auto overflow-hidden shadow-sm">
+                <Table className="min-w-[480px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="text-right font-semibold">تاريخ الدفع</TableHead>
