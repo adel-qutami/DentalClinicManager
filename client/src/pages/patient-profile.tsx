@@ -147,7 +147,7 @@ export default function PatientProfile({ id }: { id: string }) {
     setPaySubmitting(true);
     const result = await addPayment(payingVisitId, payDate, amount);
     if (result.success) {
-      toast({ title: "تم الدفع", description: `تم تسجيل دفعة بمبلغ ${amount.toLocaleString()} ر.س` });
+      toast({ title: "تم الدفع", description: `تم تسجيل دفعة بمبلغ ${amount.toLocaleString()} ر.ي` });
       try {
         const updated = await getVisitPayments(payingVisitId);
         setVisitPaymentsMap(prev => ({ ...prev, [payingVisitId]: updated }));
@@ -254,7 +254,7 @@ export default function PatientProfile({ id }: { id: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">إجمالي المدفوع</p>
-                <p className="text-2xl font-bold mt-1 text-green-600">{totalPaid.toLocaleString()}<span className="text-sm mr-1">ر.س</span></p>
+                <p className="text-2xl font-bold mt-1 text-green-600">{totalPaid.toLocaleString()}<span className="text-sm mr-1">ر.ي</span></p>
               </div>
               <div className="p-2.5 rounded-xl bg-green-50 dark:bg-green-900/30">
                 <Wallet className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -268,7 +268,7 @@ export default function PatientProfile({ id }: { id: string }) {
               <div>
                 <p className="text-xs text-muted-foreground">المتبقي</p>
                 <p className={`text-2xl font-bold mt-1 ${totalRemaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {totalRemaining > 0 ? totalRemaining.toLocaleString() : '0'}<span className="text-sm mr-1">ر.س</span>
+                  {totalRemaining > 0 ? totalRemaining.toLocaleString() : '0'}<span className="text-sm mr-1">ر.ي</span>
                 </p>
               </div>
               <div className={`p-2.5 rounded-xl ${totalRemaining > 0 ? 'bg-red-50 dark:bg-red-900/30' : 'bg-emerald-50 dark:bg-emerald-900/30'}`}>
@@ -350,7 +350,7 @@ export default function PatientProfile({ id }: { id: string }) {
                             {remaining <= 0 ? (
                               <Badge className="bg-green-600 text-[10px]">مسدد بالكامل</Badge>
                             ) : (
-                              <Badge variant="destructive" className="text-[10px]">{remaining.toLocaleString()} ر.س متبقي</Badge>
+                              <Badge variant="destructive" className="text-[10px]">{remaining.toLocaleString()} ر.ي متبقي</Badge>
                             )}
                           </div>
                           <div className="mt-3 space-y-1.5">
@@ -369,15 +369,15 @@ export default function PatientProfile({ id }: { id: string }) {
                                       </span>
                                     )}
                                   </div>
-                                  <span className="font-medium text-sm">{(Number(item.price) * (item.quantity || 1)).toLocaleString()} ر.س</span>
+                                  <span className="font-medium text-sm">{(Number(item.price) * (item.quantity || 1)).toLocaleString()} ر.ي</span>
                                 </div>
                               );
                             })}
                           </div>
                           <div className="flex items-center gap-4 mt-3 text-sm">
-                            <span className="font-bold">الإجمالي: {Number(visit.totalAmount).toLocaleString()} ر.س</span>
-                            <span className="text-green-600">مدفوع: {Number(visit.paidAmount).toLocaleString()} ر.س</span>
-                            {remaining > 0 && <span className="text-red-600">متبقي: {remaining.toLocaleString()} ر.س</span>}
+                            <span className="font-bold">الإجمالي: {Number(visit.totalAmount).toLocaleString()} ر.ي</span>
+                            <span className="text-green-600">مدفوع: {Number(visit.paidAmount).toLocaleString()} ر.ي</span>
+                            {remaining > 0 && <span className="text-red-600">متبقي: {remaining.toLocaleString()} ر.ي</span>}
                           </div>
                           {payments.length > 0 && (
                             <div className="mt-3 border-t pt-3">
@@ -385,7 +385,7 @@ export default function PatientProfile({ id }: { id: string }) {
                               <div className="flex flex-wrap gap-2">
                                 {payments.map((p, i) => (
                                   <span key={p.id || i} className="text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-1 rounded-md">
-                                    {Number(p.amount).toLocaleString()} ر.س — {p.date}
+                                    {Number(p.amount).toLocaleString()} ر.ي — {p.date}
                                   </span>
                                 ))}
                               </div>
@@ -407,7 +407,7 @@ export default function PatientProfile({ id }: { id: string }) {
                         <div className="mt-3 border-t pt-3">
                           <div className="flex items-end gap-3 flex-wrap">
                             <div className="flex-1 min-w-[120px]">
-                              <label className="text-xs font-medium text-muted-foreground mb-1 block">المبلغ (ر.س)</label>
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">المبلغ (ر.ي)</label>
                               <Input
                                 type="number"
                                 min="1"
@@ -436,7 +436,7 @@ export default function PatientProfile({ id }: { id: string }) {
                               <Button variant="outline" size="sm" className="h-9" onClick={() => setPayingVisitId(null)}>إلغاء</Button>
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2">المتبقي على هذه الزيارة: <span className="font-bold text-red-600">{remaining.toLocaleString()} ر.س</span></p>
+                          <p className="text-xs text-muted-foreground mt-2">المتبقي على هذه الزيارة: <span className="font-bold text-red-600">{remaining.toLocaleString()} ر.ي</span></p>
                         </div>
                       )}
                     </CardContent>
@@ -527,15 +527,15 @@ export default function PatientProfile({ id }: { id: string }) {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-xs text-white/70">إجمالي المستحق</p>
-                      <p className="text-xl font-bold mt-1">{totalAmount.toLocaleString()} ر.س</p>
+                      <p className="text-xl font-bold mt-1">{totalAmount.toLocaleString()} ر.ي</p>
                     </div>
                     <div>
                       <p className="text-xs text-white/70">إجمالي المدفوع</p>
-                      <p className="text-xl font-bold mt-1 text-green-200">{totalPaid.toLocaleString()} ر.س</p>
+                      <p className="text-xl font-bold mt-1 text-green-200">{totalPaid.toLocaleString()} ر.ي</p>
                     </div>
                     <div>
                       <p className="text-xs text-white/70">المتبقي</p>
-                      <p className="text-xl font-bold mt-1 text-red-200">{totalRemaining > 0 ? totalRemaining.toLocaleString() : '0'} ر.س</p>
+                      <p className="text-xl font-bold mt-1 text-red-200">{totalRemaining > 0 ? totalRemaining.toLocaleString() : '0'} ر.ي</p>
                     </div>
                   </div>
                 </CardContent>
@@ -578,7 +578,7 @@ export default function PatientProfile({ id }: { id: string }) {
                           <TableCell className="text-sm text-muted-foreground">
                             {visit.items.map(i => getService(i.serviceId)?.name).filter(Boolean).join(' • ')}
                           </TableCell>
-                          <TableCell className="text-green-600 font-bold">{Number(payment.amount).toLocaleString()} ر.س</TableCell>
+                          <TableCell className="text-green-600 font-bold">{Number(payment.amount).toLocaleString()} ر.ي</TableCell>
                         </TableRow>
                       ));
                     })()}

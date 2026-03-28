@@ -444,7 +444,7 @@ export default function Visits() {
                                 </FormControl>
                                 <SelectContent>
                                   {(services || []).map(s => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name} - {Number(s.defaultPrice)} ر.س</SelectItem>
+                                    <SelectItem key={s.id} value={s.id}>{s.name} - {Number(s.defaultPrice)} ر.ي</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -528,7 +528,7 @@ export default function Visits() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center text-lg font-bold p-3 bg-primary/5 rounded-lg">
                   <span>الإجمالي المطلوب:</span>
-                  <span data-testid="text-total-amount">{totalAmount} ر.س</span>
+                  <span data-testid="text-total-amount">{totalAmount} ر.ي</span>
                 </div>
 
                 <FormField
@@ -555,7 +555,7 @@ export default function Visits() {
                 <div className="flex justify-between items-center text-sm font-medium p-2 border rounded-lg">
                   <span>المتبقي:</span>
                   <span className={totalAmount - (form.watch('paidAmount') || 0) > 0 ? "text-red-600" : "text-green-600"}>
-                    {Math.max(0, totalAmount - (form.watch('paidAmount') || 0))} ر.س
+                    {Math.max(0, totalAmount - (form.watch('paidAmount') || 0))} ر.ي
                   </span>
                 </div>
 
@@ -585,7 +585,7 @@ export default function Visits() {
         {Number(selectedVisit.paidAmount) > 0 && (
           <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-200">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>توجد دفعات مسجلة على هذه الزيارة. يمكنك تعديل الخدمات ولكن لا يمكن تقليل المبلغ عن المدفوع ({Number(selectedVisit.paidAmount)} ر.س).</span>
+            <span>توجد دفعات مسجلة على هذه الزيارة. يمكنك تعديل الخدمات ولكن لا يمكن تقليل المبلغ عن المدفوع ({Number(selectedVisit.paidAmount)} ر.ي).</span>
           </div>
         )}
 
@@ -679,7 +679,7 @@ export default function Visits() {
                                 </FormControl>
                                 <SelectContent>
                                   {(services || []).map(s => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name} - {Number(s.defaultPrice)} ر.س</SelectItem>
+                                    <SelectItem key={s.id} value={s.id}>{s.name} - {Number(s.defaultPrice)} ر.ي</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -763,16 +763,16 @@ export default function Visits() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center text-lg font-bold p-3 bg-primary/5 rounded-lg">
                   <span>الإجمالي المطلوب:</span>
-                  <span>{editTotalAmount} ر.س</span>
+                  <span>{editTotalAmount} ر.ي</span>
                 </div>
                 <div className="flex justify-between items-center text-sm p-2 rounded-lg bg-green-50 dark:bg-green-950/20">
                   <span>المدفوع سابقاً:</span>
-                  <span className="text-green-600 font-medium">{Number(selectedVisit.paidAmount)} ر.س</span>
+                  <span className="text-green-600 font-medium">{Number(selectedVisit.paidAmount)} ر.ي</span>
                 </div>
                 <div className="flex justify-between items-center text-sm p-2 rounded-lg border">
                   <span>المتبقي بعد التعديل:</span>
                   <span className={editTotalAmount - Number(selectedVisit.paidAmount) > 0 ? "text-red-600 font-medium" : "text-green-600 font-medium"}>
-                    {Math.max(0, editTotalAmount - Number(selectedVisit.paidAmount))} ر.س
+                    {Math.max(0, editTotalAmount - Number(selectedVisit.paidAmount))} ر.ي
                   </span>
                 </div>
 
@@ -820,7 +820,7 @@ export default function Visits() {
               <div>
                 <span className="text-muted-foreground block text-xs mb-1">الحالة</span>
                 {remaining > 0 ? (
-                  <Badge variant="destructive" className="text-xs" data-testid="text-detail-status">متبقي {remaining} ر.س</Badge>
+                  <Badge variant="destructive" className="text-xs" data-testid="text-detail-status">متبقي {remaining} ر.ي</Badge>
                 ) : (
                   <Badge className="bg-green-600 text-xs" data-testid="text-detail-status">مسدد بالكامل</Badge>
                 )}
@@ -840,7 +840,7 @@ export default function Visits() {
                 <div key={idx} className="border rounded-lg p-3 space-y-2" data-testid={`detail-item-${idx}`}>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-medium text-sm">{svc?.name || "خدمة"}</span>
-                    <span className="text-sm text-muted-foreground">{Number(item.price)} ر.س × {item.quantity || 1} = {Number(item.price) * (item.quantity || 1)} ر.س</span>
+                    <span className="text-sm text-muted-foreground">{Number(item.price)} ر.ي × {item.quantity || 1} = {Number(item.price) * (item.quantity || 1)} ر.ي</span>
                   </div>
                   {item.toothNumbers && item.toothNumbers.length > 0 && (
                     <div className="space-y-1">
@@ -868,16 +868,16 @@ export default function Visits() {
           <CardContent className="pt-6 space-y-3">
             <div className="flex justify-between items-center text-lg font-bold">
               <span>الإجمالي:</span>
-              <span data-testid="text-detail-total">{Number(selectedVisit.totalAmount)} ر.س</span>
+              <span data-testid="text-detail-total">{Number(selectedVisit.totalAmount)} ر.ي</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span>المدفوع:</span>
-              <span className="text-green-600 font-medium">{Number(selectedVisit.paidAmount)} ر.س</span>
+              <span className="text-green-600 font-medium">{Number(selectedVisit.paidAmount)} ر.ي</span>
             </div>
             {remaining > 0 && (
               <div className="flex justify-between items-center text-sm p-2 bg-red-50 dark:bg-red-950/20 rounded-lg">
                 <span>المتبقي:</span>
-                <span className="text-red-600 font-bold">{remaining} ر.س</span>
+                <span className="text-red-600 font-bold">{remaining} ر.ي</span>
               </div>
             )}
           </CardContent>
@@ -899,7 +899,7 @@ export default function Visits() {
                         <CreditCard className="w-4 h-4 text-green-600" />
                       </div>
                       <div>
-                        <span className="font-medium">{Number(p.amount)} ر.س</span>
+                        <span className="font-medium">{Number(p.amount)} ر.ي</span>
                         {p.note && <span className="text-muted-foreground mr-2">- {p.note}</span>}
                       </div>
                     </div>
@@ -953,15 +953,15 @@ export default function Visits() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">إجمالي الزيارة:</span>
-                <span className="font-bold">{Number(selectedVisit.totalAmount)} ر.س</span>
+                <span className="font-bold">{Number(selectedVisit.totalAmount)} ر.ي</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">المدفوع:</span>
-                <span className="font-bold text-green-600">{Number(selectedVisit.paidAmount)} ر.س</span>
+                <span className="font-bold text-green-600">{Number(selectedVisit.paidAmount)} ر.ي</span>
               </div>
               <div className="flex justify-between p-2 bg-red-50 dark:bg-red-950/20 rounded-lg">
                 <span className="text-red-600 font-medium">المتبقي:</span>
-                <span className="text-red-600 font-bold">{remaining} ر.س</span>
+                <span className="text-red-600 font-bold">{remaining} ر.ي</span>
               </div>
             </div>
           </CardContent>
@@ -979,7 +979,7 @@ export default function Visits() {
                     <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
                       <CreditCard className="w-4 h-4 text-green-600" />
                     </div>
-                    <span className="font-medium">{Number(p.amount)} ر.س</span>
+                    <span className="font-medium">{Number(p.amount)} ر.ي</span>
                   </div>
                   <span className="text-muted-foreground text-xs">{p.date}</span>
                 </div>
@@ -1018,7 +1018,7 @@ export default function Visits() {
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertCircle className="w-3 h-3" />
-                <span>الحد الأقصى للدفعة: {remaining} ر.س</span>
+                <span>الحد الأقصى للدفعة: {remaining} ر.ي</span>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -1143,7 +1143,7 @@ export default function Visits() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-base" data-testid={`text-patient-name-${visit.id}`}>{patient?.name}</span>
                         {remaining > 0 ? (
-                          <Badge variant="destructive" className="text-[10px]">{remaining} ر.س متبقي</Badge>
+                          <Badge variant="destructive" className="text-[10px]">{remaining} ر.ي متبقي</Badge>
                         ) : (
                           <Badge className="bg-green-600 text-[10px]">مسدد</Badge>
                         )}
@@ -1160,9 +1160,9 @@ export default function Visits() {
 
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-left">
-                        <div className="font-bold text-lg" data-testid={`text-total-${visit.id}`}>{Number(visit.totalAmount)} ر.س</div>
+                        <div className="font-bold text-lg" data-testid={`text-total-${visit.id}`}>{Number(visit.totalAmount)} ر.ي</div>
                         {remaining > 0 && (
-                          <div className="text-xs text-red-600">متبقي: {remaining} ر.س</div>
+                          <div className="text-xs text-red-600">متبقي: {remaining} ر.ي</div>
                         )}
                       </div>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteVisitId(visit.id); }} data-testid={`button-delete-visit-${visit.id}`}>

@@ -31,7 +31,7 @@ export function validatePaymentAmount(
     return { valid: false, error: "تم سداد كامل المبلغ بالفعل" };
   }
   if (paymentAmount > remaining + 0.01) {
-    return { valid: false, error: `مبلغ الدفعة يتجاوز المبلغ المتبقي (${remaining.toFixed(2)} ر.س)` };
+    return { valid: false, error: `مبلغ الدفعة يتجاوز المبلغ المتبقي (${remaining.toFixed(2)} ر.ي)` };
   }
   return { valid: true };
 }

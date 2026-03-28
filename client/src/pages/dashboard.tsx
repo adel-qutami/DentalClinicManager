@@ -345,7 +345,7 @@ export default function Dashboard() {
                 <div className="bg-white/10 rounded-lg p-2.5 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] text-white/60">صافي الربح</p>
-                    <p className="text-lg font-bold">{netProfit.toLocaleString()} <span className="text-xs font-normal">ر.س</span></p>
+                    <p className="text-lg font-bold">{netProfit.toLocaleString()} <span className="text-xs font-normal">ر.ي</span></p>
                   </div>
                   <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                     {netProfit >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
@@ -355,7 +355,7 @@ export default function Dashboard() {
                 {unpaidVisitsCount > 0 && (
                   <div className="flex items-center gap-2 text-[10px] text-white/50">
                     <AlertTriangle className="w-3 h-3" />
-                    {unpaidVisitsCount} زيارة بها {pendingBalance.toLocaleString()} ر.س غير محصلة
+                    {unpaidVisitsCount} زيارة بها {pendingBalance.toLocaleString()} ر.ي غير محصلة
                   </div>
                 )}
 

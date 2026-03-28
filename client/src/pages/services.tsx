@@ -148,7 +148,7 @@ export default function Services() {
                   name="defaultPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>السعر الافتراضي (ر.س)</FormLabel>
+                      <FormLabel>السعر الافتراضي (ر.ي)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="200" {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} data-testid="input-service-price" />
                       </FormControl>
@@ -231,7 +231,7 @@ export default function Services() {
             {(services || []).map((service) => (
               <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
                 <TableCell className="font-medium" data-testid={`text-service-name-${service.id}`}>{service.name}</TableCell>
-                <TableCell data-testid={`text-service-price-${service.id}`}>{Number(service.defaultPrice).toFixed(2)} ر.س</TableCell>
+                <TableCell data-testid={`text-service-price-${service.id}`}>{Number(service.defaultPrice).toFixed(2)} ر.ي</TableCell>
                 <TableCell data-testid={`text-service-teeth-${service.id}`}>
                   {service.requiresTeethSelection ? (
                     <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">

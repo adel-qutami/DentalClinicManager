@@ -360,7 +360,7 @@ export default function Finance() {
     summaryWs.columns = [{ width: 30 }, { width: 20 }];
     summaryWs.addRows([
       ['التقرير المالي - ' + getReportPeriodLabel()], [],
-      ['البند', 'المبلغ (ر.س)'],
+      ['البند', 'المبلغ (ر.ي)'],
       ['إجمالي الدخل', stats.income],
       ['المصروفات التشغيلية', stats.operationalExpenses],
       ['المصروفات الثابتة', stats.fixedExpenses],
@@ -530,7 +530,7 @@ export default function Finance() {
                   </div>
                 </div>
                 <p className="text-xl font-bold text-green-600 dark:text-green-400">{stats.income.toLocaleString()}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">ر.س — {stats.visitsCount} زيارة</p>
+                <p className="text-[10px] text-muted-foreground mt-1">ر.ي — {stats.visitsCount} زيارة</p>
               </CardContent>
             </Card>
 
@@ -559,7 +559,7 @@ export default function Finance() {
                   </div>
                 </div>
                 <p className={`text-xl font-bold ${stats.netProfit >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-red-600'}`}>{stats.netProfit.toLocaleString()}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">ر.س — هامش الربح: {profitMargin}%</p>
+                <p className="text-[10px] text-muted-foreground mt-1">ر.ي — هامش الربح: {profitMargin}%</p>
               </CardContent>
             </Card>
 
@@ -572,7 +572,7 @@ export default function Finance() {
                   </div>
                 </div>
                 <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{stats.withdrawals.toLocaleString()}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">ر.س — متبقي: {stats.remainingAfterWithdrawals.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">ر.ي — متبقي: {stats.remainingAfterWithdrawals.toLocaleString()}</p>
               </CardContent>
             </Card>
 
@@ -585,7 +585,7 @@ export default function Finance() {
                   </div>
                 </div>
                 <p className="text-xl font-bold text-sky-600 dark:text-sky-400">{collectionRate}%</p>
-                <p className="text-[10px] text-muted-foreground mt-1">غير محصل: {stats.uncollected.toLocaleString()} ر.س</p>
+                <p className="text-[10px] text-muted-foreground mt-1">غير محصل: {stats.uncollected.toLocaleString()} ر.ي</p>
               </CardContent>
             </Card>
           </div>
@@ -670,7 +670,7 @@ export default function Finance() {
                       <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 12 }} />
                       <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="revenue" name="الإيرادات (ر.س)" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="revenue" name="الإيرادات (ر.ي)" fill="#6366f1" radius={[0, 4, 4, 0]} />
                       <Bar dataKey="visits" name="عدد الزيارات" fill="#22c55e" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -806,7 +806,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">إجمالي المصروفات</p>
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{expenseSummary.total.toLocaleString()} <span className="text-xs font-normal">ر.س</span></p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{expenseSummary.total.toLocaleString()} <span className="text-xs font-normal">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -819,7 +819,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">تشغيلي</p>
-                    <p className="text-lg font-bold">{expenseSummary.operational.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.س</span></p>
+                    <p className="text-lg font-bold">{expenseSummary.operational.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -832,7 +832,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ثابت</p>
-                    <p className="text-lg font-bold">{expenseSummary.fixed.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.س</span></p>
+                    <p className="text-lg font-bold">{expenseSummary.fixed.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -890,7 +890,7 @@ export default function Finance() {
                     )} />
                     <FormField control={form.control} name="amount" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ (ر.س)</FormLabel>
+                        <FormLabel>المبلغ (ر.ي)</FormLabel>
                         <FormControl><Input type="number" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))} className="h-9" /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1011,7 +1011,7 @@ export default function Finance() {
                         </TableCell>
                         <TableCell className="font-medium text-sm">{expense.title}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{expense.category}</TableCell>
-                        <TableCell className="text-red-600 dark:text-red-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
+                        <TableCell className="text-red-600 dark:text-red-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.ي</TableCell>
                         <TableCell className="text-muted-foreground text-xs max-w-[150px] truncate">{expense.notes || '—'}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-0.5">
@@ -1028,7 +1028,7 @@ export default function Finance() {
             {onlyExpenses.length > 0 && (
               <div className="border-t bg-muted/30 px-4 py-2.5 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{expenseSummary.count} عنصر</span>
-                <span className="text-sm font-bold text-red-600 dark:text-red-400">الإجمالي: {expenseSummary.total.toLocaleString()} ر.س</span>
+                <span className="text-sm font-bold text-red-600 dark:text-red-400">الإجمالي: {expenseSummary.total.toLocaleString()} ر.ي</span>
               </div>
             )}
           </div>
@@ -1045,7 +1045,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">إجمالي السحبيات</p>
-                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{withdrawalSummary.total.toLocaleString()} <span className="text-xs font-normal">ر.س</span></p>
+                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{withdrawalSummary.total.toLocaleString()} <span className="text-xs font-normal">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -1058,7 +1058,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">صافي الأرباح الكلي</p>
-                    <p className="text-lg font-bold">{withdrawalSummary.netProfit.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.س</span></p>
+                    <p className="text-lg font-bold">{withdrawalSummary.netProfit.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -1071,7 +1071,7 @@ export default function Finance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">المتاح للسحب</p>
-                    <p className={`text-lg font-bold ${withdrawalSummary.available >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{withdrawalSummary.available.toLocaleString()} <span className="text-xs font-normal">ر.س</span></p>
+                    <p className={`text-lg font-bold ${withdrawalSummary.available >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{withdrawalSummary.available.toLocaleString()} <span className="text-xs font-normal">ر.ي</span></p>
                   </div>
                 </div>
               </CardContent>
@@ -1122,7 +1122,7 @@ export default function Finance() {
                     )} />
                     <FormField control={withdrawalForm.control} name="amount" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ (ر.س)</FormLabel>
+                        <FormLabel>المبلغ (ر.ي)</FormLabel>
                         <FormControl><Input type="number" placeholder="0" {...field} value={field.value || ""} onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))} className="h-9" /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1198,7 +1198,7 @@ export default function Finance() {
                       <TableRow key={expense.id} className="hover:bg-muted/30 transition-colors group" data-testid={`row-withdrawal-${expense.id}`}>
                         <TableCell className="text-sm">{expense.date}</TableCell>
                         <TableCell className="font-medium text-sm">{expense.title}</TableCell>
-                        <TableCell className="text-amber-600 dark:text-amber-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.س</TableCell>
+                        <TableCell className="text-amber-600 dark:text-amber-400 font-semibold text-sm">-{Number(expense.amount).toLocaleString()} ر.ي</TableCell>
                         <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{expense.notes || '—'}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-0.5">
@@ -1215,7 +1215,7 @@ export default function Finance() {
             {onlyWithdrawals.length > 0 && (
               <div className="border-t bg-muted/30 px-4 py-2.5 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{withdrawalSummary.count} سحب</span>
-                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">الإجمالي: {withdrawalSummary.total.toLocaleString()} ر.س</span>
+                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">الإجمالي: {withdrawalSummary.total.toLocaleString()} ر.ي</span>
               </div>
             )}
           </div>
