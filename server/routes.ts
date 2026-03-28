@@ -458,6 +458,16 @@ export async function registerRoutes(
       }
 
       const visit = await storage.createVisit(validatedVisit, validatedItems);
+
+      if (Number(validatedVisit.paidAmount) > 0) {
+        await storage.createPaymentRecord(
+          visit.id,
+          Number(validatedVisit.paidAmount),
+          validatedVisit.date,
+          "دفعة مقدمة عند إنشاء الزيارة"
+        );
+      }
+
       await storage.createAuditLog({
         userId: req.session?.userId || null,
         entityName: "visit",

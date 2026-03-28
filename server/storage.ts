@@ -75,6 +75,7 @@ export interface IStorage {
   getPaymentsForVisit(visitId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
+  createPaymentRecord(visitId: string, amount: number, date: string, note?: string): Promise<Payment>;
 
   getAllExpenses(): Promise<Expense[]>;
   getExpense(id: string): Promise<Expense | undefined>;
@@ -396,6 +397,15 @@ export class DatabaseStorage implements IStorage {
       await db.update(visits).set({ paidAmount: String(newPaid) }).where(eq(visits.id, payment.visitId));
     }
 
+    return result[0];
+  }
+
+  async createPaymentRecord(visitId: string, amount: number, date: string, note?: string): Promise<Payment> {
+    const id = randomUUID();
+    const result = await db
+      .insert(payments)
+      .values({ id, visitId, amount: String(amount), date, note: note ?? null })
+      .returning();
     return result[0];
   }
 
