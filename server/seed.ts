@@ -5,14 +5,17 @@ import {
   appointments,
   visits,
   visitItems,
+  payments,
   expenses,
 } from "@shared/schema";
 import { format, subDays } from "date-fns";
+import { randomUUID } from "crypto";
 
 async function seed() {
   console.log("Seeding database...");
 
   try {
+    await db.delete(payments);
     await db.delete(visitItems);
     await db.delete(visits);
     await db.delete(appointments);
@@ -82,18 +85,18 @@ async function seed() {
     console.log("✓ Added 12 appointments");
 
     const visitsData = [
-      { patientId: p(0), date: format(subDays(new Date(), 8), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "400", paidAmount: "400", notes: "كشف شامل وتنظيف" },
-      { patientId: p(1), date: format(subDays(new Date(), 7), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "250", paidAmount: "250", notes: "حشوة عادية سن 16" },
-      { patientId: p(2), date: format(subDays(new Date(), 6), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "900", paidAmount: "500", notes: "حاجة لمتابعة بسبب السكري" },
-      { patientId: p(3), date: format(subDays(new Date(), 5), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "300", paidAmount: "300", notes: "تنظيف أسنان" },
-      { patientId: p(4), date: format(subDays(new Date(), 4), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "1200", paidAmount: "1200", notes: "تلبيسة زيركون سن 21" },
-      { patientId: p(5), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "200", paidAmount: "200", notes: "خلع سن عادي" },
-      { patientId: p(6), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "1500", paidAmount: "1500", notes: "تبييض أسنان كامل" },
-      { patientId: p(7), date: format(subDays(new Date(), 2), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "8000", paidAmount: "3000", notes: "بدء علاج تقويم - أقساط" },
-      { patientId: p(8), date: format(subDays(new Date(), 2), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "4000", paidAmount: "4000", notes: "طقم أسنان كامل" },
-      { patientId: p(9), date: format(subDays(new Date(), 1), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "400", paidAmount: "400", notes: "حشوة تجميلية سن 11" },
-      { patientId: p(10), date: format(subDays(new Date(), 1), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "600", paidAmount: "100", notes: "كشف أولي مع حشوتين" },
-      { patientId: p(11), date: format(new Date(), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "600", paidAmount: "500", notes: "خلع جراحي سن 38" },
+      { patientId: p(0), date: format(subDays(new Date(), 8), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "400", notes: "كشف شامل وتنظيف" },
+      { patientId: p(1), date: format(subDays(new Date(), 7), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "250", notes: "حشوة عادية سن 16" },
+      { patientId: p(2), date: format(subDays(new Date(), 6), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "900", notes: "حاجة لمتابعة بسبب السكري" },
+      { patientId: p(3), date: format(subDays(new Date(), 5), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "300", notes: "تنظيف أسنان" },
+      { patientId: p(4), date: format(subDays(new Date(), 4), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "1200", notes: "تلبيسة زيركون سن 21" },
+      { patientId: p(5), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "200", notes: "خلع سن عادي" },
+      { patientId: p(6), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "1500", notes: "تبييض أسنان كامل" },
+      { patientId: p(7), date: format(subDays(new Date(), 2), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "8000", notes: "بدء علاج تقويم - أقساط" },
+      { patientId: p(8), date: format(subDays(new Date(), 2), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "4000", notes: "طقم أسنان كامل" },
+      { patientId: p(9), date: format(subDays(new Date(), 1), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "400", notes: "حشوة تجميلية سن 11" },
+      { patientId: p(10), date: format(subDays(new Date(), 1), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "600", notes: "كشف أولي مع حشوتين" },
+      { patientId: p(11), date: format(new Date(), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "600", notes: "خلع جراحي سن 38" },
     ];
 
     const createdVisits = await db.insert(visits).values(visitsData).returning();
@@ -120,6 +123,24 @@ async function seed() {
 
     await db.insert(visitItems).values(itemsData);
     console.log("✓ Added 16 visit items");
+
+    const v = (i: number) => createdVisits[i];
+    await db.insert(payments).values([
+      { id: randomUUID(), visitId: v(0).id, date: v(0).date, amount: "400", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(1).id, date: v(1).date, amount: "250", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(2).id, date: v(2).date, amount: "500", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(3).id, date: v(3).date, amount: "300", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(4).id, date: v(4).date, amount: "1200", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(5).id, date: v(5).date, amount: "200", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(6).id, date: v(6).date, amount: "1500", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(7).id, date: v(7).date, amount: "2000", type: "initial", note: "دفعة أولى - بدء علاج التقويم" },
+      { id: randomUUID(), visitId: v(7).id, date: format(subDays(new Date(), 1), "yyyy-MM-dd"), amount: "1000", type: "manual", note: "قسط ثانٍ" },
+      { id: randomUUID(), visitId: v(8).id, date: v(8).date, amount: "4000", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(9).id, date: v(9).date, amount: "400", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(10).id, date: v(10).date, amount: "100", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: v(11).id, date: v(11).date, amount: "500", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+    ]);
+    console.log("✓ Added 13 payment records");
 
     await db.insert(expenses).values([
       { title: "إيجار العيادة - شهر فبراير", amount: "15000", date: format(subDays(new Date(), 25), "yyyy-MM-dd"), category: "إيجار", type: "fixed" as const, notes: "إيجار شهري" },

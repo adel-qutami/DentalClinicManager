@@ -445,7 +445,7 @@ export async function registerRoutes(
 
   app.post("/api/visits", requireAuth, async (req, res) => {
     try {
-      const { items, ...visitData } = req.body;
+      const { items, paidAmount: initialPaymentRaw, ...visitData } = req.body;
       const validatedItems = z.array(insertVisitItemSchema.omit({ visitId: true })).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items || []);
       const serverTotal = calculateTotalFromItems(validatedItems);
       const validatedVisit = insertVisitSchema.parse({
@@ -453,11 +453,11 @@ export async function registerRoutes(
         totalAmount: serverTotal,
       });
 
-      if (validatedVisit.paidAmount !== undefined && validatedVisit.paidAmount > serverTotal) {
+      const initialPaid = Number(initialPaymentRaw) || 0;
+      if (initialPaid > serverTotal) {
         return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يتجاوز الإجمالي" });
       }
 
-      const initialPaid = Number(validatedVisit.paidAmount);
       const visit = initialPaid > 0
         ? await storage.createVisitWithInitialPayment(validatedVisit, validatedItems, {
             amount: initialPaid,
@@ -488,13 +488,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "الزيارة غير موجودة" });
       }
 
-      const currentPaid = Number(oldVisit.paidAmount);
-
       if (items && Array.isArray(items)) {
         const validatedItems = z.array(insertVisitItemSchema.omit({ visitId: true })).min(1, "يجب إضافة خدمة واحدة على الأقل").parse(items);
         const serverTotal = calculateTotalFromItems(validatedItems);
 
-        const totalCheck = validateEditVisitTotal(serverTotal, currentPaid);
+        const totalCheck = validateEditVisitTotal(serverTotal, Number(oldVisit.paidAmount));
         if (!totalCheck.valid) {
           return res.status(400).json({ message: totalCheck.error });
         }
@@ -515,25 +513,6 @@ export async function registerRoutes(
         res.json(visit);
       } else {
         const validated = insertVisitSchema.partial().parse(visitData);
-
-        if (validated.paidAmount !== undefined) {
-          if (validated.paidAmount < 0) {
-            return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يكون سالباً" });
-          }
-          if (validated.paidAmount > Number(oldVisit.totalAmount)) {
-            return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الزيارة" });
-          }
-          const delta = validated.paidAmount - currentPaid;
-          if (delta < 0) {
-            return res.status(400).json({ message: "لا يمكن تقليل المبلغ المدفوع" });
-          }
-          if (delta > 0) {
-            const remaining = Number(oldVisit.totalAmount) - currentPaid;
-            if (delta > remaining + 0.01) {
-              return res.status(400).json({ message: `مبلغ الدفعة يتجاوز المبلغ المتبقي (${remaining.toFixed(2)} ر.س)` });
-            }
-          }
-        }
 
         const visit = await storage.updateVisit(req.params.id, validated);
         await storage.createAuditLog({

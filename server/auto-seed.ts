@@ -5,10 +5,12 @@ import {
   appointments,
   visits,
   visitItems,
+  payments,
   expenses,
 } from "@shared/schema";
 import { format, subDays } from "date-fns";
 import { sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 export async function autoSeedIfEmpty() {
   try {
@@ -77,12 +79,12 @@ export async function autoSeedIfEmpty() {
     console.log("[AutoSeed] ✓ Added 5 appointments");
 
     const visitsData = [
-      { patientId: p(0), date: format(subDays(new Date(), 8), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "400", paidAmount: "400" },
-      { patientId: p(1), date: format(subDays(new Date(), 7), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "250", paidAmount: "250" },
-      { patientId: p(2), date: format(subDays(new Date(), 6), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "900", paidAmount: "500" },
-      { patientId: p(3), date: format(subDays(new Date(), 5), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "300", paidAmount: "300" },
-      { patientId: p(4), date: format(subDays(new Date(), 4), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "1200", paidAmount: "1200" },
-      { patientId: p(5), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "200", paidAmount: "200" },
+      { patientId: p(0), date: format(subDays(new Date(), 8), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "400" },
+      { patientId: p(1), date: format(subDays(new Date(), 7), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "250" },
+      { patientId: p(2), date: format(subDays(new Date(), 6), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "900" },
+      { patientId: p(3), date: format(subDays(new Date(), 5), "yyyy-MM-dd"), doctorName: "د. نورة", totalAmount: "300" },
+      { patientId: p(4), date: format(subDays(new Date(), 4), "yyyy-MM-dd"), doctorName: "د. أحمد", totalAmount: "1200" },
+      { patientId: p(5), date: format(subDays(new Date(), 3), "yyyy-MM-dd"), doctorName: "د. سامي", totalAmount: "200" },
     ];
 
     const createdVisits = await db.insert(visits).values(visitsData).returning();
@@ -99,6 +101,17 @@ export async function autoSeedIfEmpty() {
       { visitId: createdVisits[5].id, serviceId: s("خلع سن عادي").id, price: "200", quantity: 1, toothNumbers: ["48"], jawType: "single_tooth" },
     ]);
     console.log("[AutoSeed] ✓ Added 8 visit items");
+
+    const cv = (i: number) => createdVisits[i];
+    await db.insert(payments).values([
+      { id: randomUUID(), visitId: cv(0).id, date: cv(0).date, amount: "400", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: cv(1).id, date: cv(1).date, amount: "250", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: cv(2).id, date: cv(2).date, amount: "500", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: cv(3).id, date: cv(3).date, amount: "300", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: cv(4).id, date: cv(4).date, amount: "1200", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+      { id: randomUUID(), visitId: cv(5).id, date: cv(5).date, amount: "200", type: "initial", note: "دفعة مقدمة عند إنشاء الزيارة" },
+    ]);
+    console.log("[AutoSeed] ✓ Added 6 payment records");
 
     await db.insert(expenses).values([
       { title: "إيجار العيادة - شهر فبراير", amount: "15000", date: format(subDays(new Date(), 25), "yyyy-MM-dd"), category: "إيجار", type: "fixed" as const },

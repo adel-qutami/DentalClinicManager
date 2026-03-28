@@ -76,7 +76,6 @@ export interface IStorage {
   getPaymentsForVisit(visitId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
-  createPaymentRecord(visitId: string, amount: number, date: string, note?: string): Promise<Payment>;
 
   getAllExpenses(): Promise<Expense[]>;
   getExpense(id: string): Promise<Expense | undefined>;
@@ -283,23 +282,34 @@ export class DatabaseStorage implements IStorage {
       .from(visitItems)
       .where(eq(visitItems.visitId, id));
 
-    return { ...visit[0], items };
+    const paidSums = await db
+      .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
+      .from(payments)
+      .where(eq(payments.visitId, id));
+
+    return { ...visit[0], paidAmount: paidSums[0]?.total ?? '0', items };
   }
 
   async getAllVisits(): Promise<(Visit & { items: VisitItem[] })[]> {
     const allVisits = await db.select().from(visits).orderBy(desc(visits.createdAt));
 
-    const visitsWithItems = await Promise.all(
-      allVisits.map(async (visit) => {
-        const items = await db
-          .select()
-          .from(visitItems)
-          .where(eq(visitItems.visitId, visit.id));
-        return { ...visit, items };
+    const paidSums = await db
+      .select({
+        visitId: payments.visitId,
+        total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)`,
       })
-    );
+      .from(payments)
+      .groupBy(payments.visitId);
 
-    return visitsWithItems;
+    const paidMap = new Map(paidSums.map(p => [p.visitId, p.total]));
+
+    const allItems = await db.select().from(visitItems);
+
+    return allVisits.map(v => ({
+      ...v,
+      paidAmount: paidMap.get(v.id) ?? '0',
+      items: allItems.filter(i => i.visitId === v.id),
+    }));
   }
 
   async createVisit(visit: InsertVisit, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }> {
@@ -320,7 +330,7 @@ export class DatabaseStorage implements IStorage {
       })
     );
 
-    return { ...insertedVisit[0], items: insertedItems };
+    return { ...insertedVisit[0], paidAmount: '0', items: insertedItems };
   }
 
   async createVisitWithInitialPayment(
@@ -351,10 +361,11 @@ export class DatabaseStorage implements IStorage {
         visitId,
         amount: String(initialPayment.amount),
         date: initialPayment.date,
+        type: 'initial',
         note: "دفعة مقدمة عند إنشاء الزيارة",
       });
 
-      return { ...insertedVisit[0], items: insertedItems };
+      return { ...insertedVisit[0], paidAmount: String(initialPayment.amount), items: insertedItems };
     });
   }
 
@@ -370,7 +381,12 @@ export class DatabaseStorage implements IStorage {
       .from(visitItems)
       .where(eq(visitItems.visitId, id));
 
-    return { ...result[0], items };
+    const paidSums = await db
+      .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
+      .from(payments)
+      .where(eq(payments.visitId, id));
+
+    return { ...result[0], paidAmount: paidSums[0]?.total ?? '0', items };
   }
 
   async updateVisitWithItems(
@@ -399,7 +415,12 @@ export class DatabaseStorage implements IStorage {
     );
 
     const updatedVisit = await db.select().from(visits).where(eq(visits.id, id));
-    return { ...updatedVisit[0], items: insertedItems };
+    const paidSums = await db
+      .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
+      .from(payments)
+      .where(eq(payments.visitId, id));
+
+    return { ...updatedVisit[0], paidAmount: paidSums[0]?.total ?? '0', items: insertedItems };
   }
 
   async deleteVisit(id: string): Promise<void> {
@@ -427,21 +448,6 @@ export class DatabaseStorage implements IStorage {
       .values({ ...payment, amount: String(payment.amount), id })
       .returning();
 
-    const visit = await this.getVisit(payment.visitId);
-    if (visit) {
-      const newPaid = Number(visit.paidAmount) + Number(payment.amount);
-      await db.update(visits).set({ paidAmount: String(newPaid) }).where(eq(visits.id, payment.visitId));
-    }
-
-    return result[0];
-  }
-
-  async createPaymentRecord(visitId: string, amount: number, date: string, note?: string): Promise<Payment> {
-    const id = randomUUID();
-    const result = await db
-      .insert(payments)
-      .values({ id, visitId, amount: String(amount), date, note: note ?? null })
-      .returning();
     return result[0];
   }
 

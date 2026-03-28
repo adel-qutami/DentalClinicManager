@@ -114,6 +114,7 @@ export const payments = pgTable("payments", {
   visitId: varchar("visit_id").notNull().references(() => visits.id),
   date: date("date").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: text("type").notNull().default("manual"),
   note: text("note"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -123,12 +124,14 @@ export const insertPaymentSchema = createInsertSchema(payments)
     visitId: true,
     date: true,
     amount: true,
+    type: true,
     note: true,
   })
   .extend({
     visitId: z.string().min(1, "الزيارة مطلوبة"),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
     amount: z.coerce.number().positive("مبلغ الدفعة يجب أن يكون أكبر من صفر"),
+    type: z.enum(["initial", "manual"]).default("manual"),
   });
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
@@ -171,9 +174,6 @@ export const visits = pgTable("visits", {
   doctorName: text("doctor_name").notNull(),
   diagnosis: text("diagnosis"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 })
-    .notNull()
-    .default("0"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -185,7 +185,6 @@ export const insertVisitSchema = createInsertSchema(visits)
     doctorName: true,
     diagnosis: true,
     totalAmount: true,
-    paidAmount: true,
     notes: true,
   })
   .extend({
@@ -193,11 +192,10 @@ export const insertVisitSchema = createInsertSchema(visits)
     doctorName: z.string().min(1, "اسم الطبيب مطلوب"),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
     totalAmount: z.coerce.number().min(0, "الإجمالي لا يمكن أن يكون سالباً"),
-    paidAmount: z.coerce.number().min(0, "المبلغ المدفوع لا يمكن أن يكون سالباً").optional(),
   });
 
 export type InsertVisit = z.infer<typeof insertVisitSchema>;
-export type Visit = typeof visits.$inferSelect;
+export type Visit = typeof visits.$inferSelect & { paidAmount: string };
 
 export const expenses = pgTable("expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

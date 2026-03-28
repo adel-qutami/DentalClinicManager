@@ -68,9 +68,9 @@ Preferred communication style: Simple, everyday language.
 - **Patients**: Name, phone, age, gender, notes
 - **Services**: Dental procedures with default pricing and teeth selection flag
 - **Appointments**: Scheduled patient visits with morning/evening periods
-- **Visits**: Completed patient sessions with multiple service items, quantity, and tooth mapping
+- **Visits**: Completed patient sessions with multiple service items, quantity, and tooth mapping. `paidAmount` is NOT stored — it is always computed from `SUM(payments.amount)` (Single Source of Truth architecture)
 - **Visit Items**: Service line items with price, quantity, tooth numbers, and jaw type
-- **Payments**: Payment records linked to visits
+- **Payments**: Payment records linked to visits — the ONLY source of truth for paid amounts. Has `type` field: `'initial'` (created with visit) or `'manual'` (added later). `paidAmount` on Visit is computed via `LEFT JOIN + SUM` in every read query
 - **Expenses**: Clinic operational costs and withdrawals
 - **Audit Logs**: Track all create/update/delete operations
 
