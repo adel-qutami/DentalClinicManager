@@ -1,4 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useStore, Visit, Payment } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -311,23 +315,6 @@ export default function PatientProfile({ id }: { id: string }) {
         </TabsList>
 
         <TabsContent value="visits" className="space-y-4">
-          {deleteVisitId && (
-            <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-              <CardContent className="flex items-center justify-between gap-4 py-4">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <div>
-                    <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذه الزيارة؟</p>
-                    <p className="text-sm text-red-700 dark:text-red-400">سيتم حذف جميع الدفعات المرتبطة</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="destructive" size="sm" onClick={handleDeleteVisit} data-testid="button-confirm-delete-visit">حذف</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteVisitId(null)}>إلغاء</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {patientVisits.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -448,20 +435,6 @@ export default function PatientProfile({ id }: { id: string }) {
         </TabsContent>
 
         <TabsContent value="appointments" className="space-y-4">
-          {deleteApptId && (
-            <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-              <CardContent className="flex items-center justify-between gap-4 py-4">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذا الموعد؟</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="destructive" size="sm" onClick={handleDeleteAppt} data-testid="button-confirm-delete-appt">حذف</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteApptId(null)}>إلغاء</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {patientAppointments.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -589,6 +562,50 @@ export default function PatientProfile({ id }: { id: string }) {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deleteVisitId} onOpenChange={(open) => { if (!open) setDeleteVisitId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف الزيارة</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من حذف هذه الزيارة؟<br />
+              <span className="text-destructive font-medium">سيتم حذف جميع الدفعات المرتبطة ولا يمكن التراجع.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={handleDeleteVisit}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-visit"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteApptId} onOpenChange={(open) => { if (!open) setDeleteApptId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف الموعد</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من حذف هذا الموعد؟<br />
+              <span className="text-destructive font-medium">لا يمكن التراجع عن هذه العملية.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={handleDeleteAppt}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-appt"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

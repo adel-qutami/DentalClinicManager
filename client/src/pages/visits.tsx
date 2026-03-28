@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Trash2, AlertCircle, X, Pencil, Eye, CreditCard, ArrowRight } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -1097,23 +1101,6 @@ export default function Visits() {
         </Button>
       </div>
 
-      {deleteVisitId && (
-        <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="flex items-center justify-between gap-4 py-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <div>
-                <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذه الزيارة؟</p>
-                <p className="text-sm text-red-700 dark:text-red-400">سيتم حذف جميع الدفعات المرتبطة بها</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="destructive" size="sm" onClick={confirmDeleteVisit} data-testid="button-confirm-delete-visit">حذف</Button>
-              <Button variant="outline" size="sm" onClick={() => setDeleteVisitId(null)} data-testid="button-cancel-delete-visit">إلغاء</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {filteredVisits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
@@ -1225,6 +1212,32 @@ export default function Visits() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!deleteVisitId} onOpenChange={(open) => { if (!open) setDeleteVisitId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف الزيارة</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              {(() => {
+                const v = (visits || []).find(x => x.id === deleteVisitId);
+                const p = v ? (patients || []).find(pt => pt.id === v.patientId) : null;
+                return p ? <>هل أنت متأكد من حذف زيارة <strong>{p.name}</strong>؟<br /></> : <>هل أنت متأكد من حذف هذه الزيارة؟<br /></>;
+              })()}
+              <span className="text-destructive font-medium">سيتم حذف جميع الدفعات المرتبطة بها ولا يمكن التراجع.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={confirmDeleteVisit}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-visit"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel data-testid="button-cancel-delete-visit">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,4 +1,8 @@
 import { useState, useMemo } from "react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -931,20 +935,6 @@ export default function Finance() {
             </Card>
           )}
 
-          {deleteExpenseId && (
-            <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-              <CardContent className="flex items-center justify-between gap-4 py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="font-medium text-red-900 dark:text-red-200 text-sm">هل تريد حذف هذا العنصر؟</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="destructive" size="sm" onClick={confirmDeleteExpense} data-testid="button-confirm-delete-expense">حذف</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteExpenseId(null)} data-testid="button-cancel-delete-expense">إلغاء</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <div className="rounded-xl border bg-card overflow-hidden shadow-sm overflow-x-auto">
             <Table className="min-w-[640px]">
@@ -1311,23 +1301,6 @@ export default function Finance() {
                           </Form>
                         </TableCell>
                       </TableRow>
-                    ) : deleteCategoryId === cat.id ? (
-                      <TableRow key={cat.id}>
-                        <TableCell colSpan={4}>
-                          <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/30">
-                            <CardContent className="flex items-center justify-between py-3">
-                              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                                <AlertCircle className="w-4 h-4" />
-                                <span className="text-sm font-medium">هل تريد حذف تصنيف "{cat.name}"؟{catExpenseCount > 0 && ` (مرتبط بـ ${catExpenseCount} مصروف)`}</span>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="destructive" className="h-7 px-3 text-xs" onClick={confirmDeleteCategory} data-testid="btn-confirm-delete-category">حذف</Button>
-                                <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={() => setDeleteCategoryId(null)}>إلغاء</Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </TableCell>
-                      </TableRow>
                     ) : (
                       <TableRow key={cat.id} className="group hover:bg-muted/30">
                         <TableCell className="font-medium">{cat.name}</TableCell>
@@ -1358,6 +1331,61 @@ export default function Finance() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deleteExpenseId} onOpenChange={(open) => { if (!open) setDeleteExpenseId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              {(() => {
+                const exp = (expenses || []).find(e => e.id === deleteExpenseId);
+                return exp
+                  ? <>هل أنت متأكد من حذف <strong>{exp.title}</strong>؟<br /></>
+                  : <>هل أنت متأكد من حذف هذا العنصر؟<br /></>;
+              })()}
+              <span className="text-destructive font-medium">لا يمكن التراجع عن هذه العملية.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={confirmDeleteExpense}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-expense"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel data-testid="button-cancel-delete-expense">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteCategoryId} onOpenChange={(open) => { if (!open) setDeleteCategoryId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف التصنيف</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              {(() => {
+                const cat = (expenseCategories || []).find(c => c.id === deleteCategoryId);
+                const count = cat ? (expenses || []).filter(e => e.category === cat.name).length : 0;
+                return cat
+                  ? <>هل أنت متأكد من حذف تصنيف <strong>{cat.name}</strong>؟{count > 0 && <> (مرتبط بـ <strong>{count}</strong> مصروف)</>}<br /></>
+                  : <>هل أنت متأكد من حذف هذا التصنيف؟<br /></>;
+              })()}
+              <span className="text-destructive font-medium">لا يمكن التراجع عن هذه العملية.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={confirmDeleteCategory}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="btn-confirm-delete-category"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

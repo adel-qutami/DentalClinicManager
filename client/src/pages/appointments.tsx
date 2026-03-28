@@ -8,6 +8,10 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Calendar as CalendarIcon, X, Trash2, AlertCircle, Edit, Filter } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -172,20 +176,6 @@ export default function Appointments() {
         </div>
       </div>
 
-      {deleteId && (
-        <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="flex items-center justify-between gap-4 py-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <p className="font-medium text-red-900 dark:text-red-200">هل تريد حذف هذا الموعد؟</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="destructive" size="sm" onClick={confirmDelete} data-testid="button-confirm-delete">حذف</Button>
-              <Button variant="outline" size="sm" onClick={() => setDeleteId(null)} data-testid="button-cancel-delete">إلغاء</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap flex-1">
@@ -450,6 +440,34 @@ export default function Appointments() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف الموعد</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              {(() => {
+                const appt = appointments.find(a => a.id === deleteId);
+                const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                return patient
+                  ? <>هل أنت متأكد من حذف موعد <strong>{patient.name}</strong>؟<br /></>
+                  : <>هل أنت متأكد من حذف هذا الموعد؟<br /></>;
+              })()}
+              <span className="text-destructive font-medium">لا يمكن التراجع عن هذه العملية.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel data-testid="button-cancel-delete">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
