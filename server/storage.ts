@@ -68,6 +68,7 @@ export interface IStorage {
   getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined>;
   getAllVisits(): Promise<(Visit & { items: VisitItem[] })[]>;
   createVisit(visit: InsertVisit, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }>;
+  createVisitWithInitialPayment(visit: InsertVisit, items: InsertVisitItem[], initialPayment: { amount: number; date: string }): Promise<Visit & { items: VisitItem[] }>;
   updateVisit(id: string, visit: Partial<InsertVisit>): Promise<Visit & { items: VisitItem[] }>;
   updateVisitWithItems(id: string, visit: Partial<InsertVisit>, items: InsertVisitItem[]): Promise<Visit & { items: VisitItem[] }>;
   deleteVisit(id: string): Promise<void>;
@@ -320,6 +321,41 @@ export class DatabaseStorage implements IStorage {
     );
 
     return { ...insertedVisit[0], items: insertedItems };
+  }
+
+  async createVisitWithInitialPayment(
+    visit: InsertVisit,
+    items: InsertVisitItem[],
+    initialPayment: { amount: number; date: string }
+  ): Promise<Visit & { items: VisitItem[] }> {
+    return await db.transaction(async (tx) => {
+      const visitId = randomUUID();
+      const insertedVisit = await tx
+        .insert(visits)
+        .values({ ...visit, id: visitId })
+        .returning();
+
+      const insertedItems = await Promise.all(
+        items.map(async (item) => {
+          const itemId = randomUUID();
+          const result = await tx
+            .insert(visitItems)
+            .values({ ...item, visitId, id: itemId })
+            .returning();
+          return result[0];
+        })
+      );
+
+      await tx.insert(payments).values({
+        id: randomUUID(),
+        visitId,
+        amount: String(initialPayment.amount),
+        date: initialPayment.date,
+        note: "دفعة مقدمة عند إنشاء الزيارة",
+      });
+
+      return { ...insertedVisit[0], items: insertedItems };
+    });
   }
 
   async updateVisit(id: string, visit: Partial<InsertVisit>): Promise<Visit & { items: VisitItem[] }> {

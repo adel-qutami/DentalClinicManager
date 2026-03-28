@@ -457,16 +457,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "المبلغ المدفوع لا يمكن أن يتجاوز الإجمالي" });
       }
 
-      const visit = await storage.createVisit(validatedVisit, validatedItems);
-
-      if (Number(validatedVisit.paidAmount) > 0) {
-        await storage.createPaymentRecord(
-          visit.id,
-          Number(validatedVisit.paidAmount),
-          validatedVisit.date,
-          "دفعة مقدمة عند إنشاء الزيارة"
-        );
-      }
+      const initialPaid = Number(validatedVisit.paidAmount);
+      const visit = initialPaid > 0
+        ? await storage.createVisitWithInitialPayment(validatedVisit, validatedItems, {
+            amount: initialPaid,
+            date: validatedVisit.date,
+          })
+        : await storage.createVisit(validatedVisit, validatedItems);
 
       await storage.createAuditLog({
         userId: req.session?.userId || null,
