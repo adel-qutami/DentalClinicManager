@@ -50,7 +50,7 @@ export const insertPatientSchema = createInsertSchema(patients)
   })
   .extend({
     name: z.string().min(2, "الاسم مطلوب ويجب أن يكون حرفين على الأقل").max(100),
-    phone: z.string().regex(/^05\d{8}$/, "رقم الهاتف يجب أن يبدأ بـ 05 ويتكون من 10 أرقام"),
+    phone: z.string().min(7, "رقم الهاتف قصير جداً").max(20, "رقم الهاتف طويل جداً"),
     age: z.coerce.number().int().min(0, "العمر لا يمكن أن يكون سالباً").max(150, "العمر غير منطقي"),
     gender: z.enum(["male", "female"]),
   });

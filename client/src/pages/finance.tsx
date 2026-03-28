@@ -754,35 +754,41 @@ export default function Finance() {
 
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">أحدث العمليات المالية</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">سجل الدفعات الكامل</CardTitle>
+                  <span className="text-xs text-muted-foreground">
+                    {[...filteredData.visits, ...filteredData.expenses].length} عملية
+                  </span>
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {[
-                    ...filteredData.visits.map(v => ({ date: v.date, type: 'income' as const, title: `زيارة — ${v.doctorName}`, amount: Number(v.paidAmount) })),
-                    ...filteredData.expenses.map(e => ({ date: e.date, type: 'expense' as const, title: e.title, amount: Number(e.amount) }))
-                  ]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 5)
-                    .map((item, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center ${item.type === 'income' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                            {item.type === 'income' ? <TrendingUp className="w-3.5 h-3.5 text-green-600" /> : <TrendingDown className="w-3.5 h-3.5 text-red-600" />}
+              <CardContent className="p-0">
+                <div className="max-h-[420px] overflow-y-auto px-6 pb-4">
+                  <div className="space-y-1">
+                    {[
+                      ...filteredData.visits.map(v => ({ date: v.date, type: 'income' as const, title: `زيارة — ${v.doctorName}`, amount: Number(v.paidAmount) })),
+                      ...filteredData.expenses.map(e => ({ date: e.date, type: 'expense' as const, title: e.title, amount: Number(e.amount) }))
+                    ]
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((item, i) => (
+                        <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                              {item.type === 'income' ? <TrendingUp className="w-3.5 h-3.5 text-green-600" /> : <TrendingDown className="w-3.5 h-3.5 text-red-600" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium leading-tight">{item.title}</p>
+                              <p className="text-[10px] text-muted-foreground">{item.date}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium leading-tight">{item.title}</p>
-                            <p className="text-[10px] text-muted-foreground">{item.date}</p>
-                          </div>
+                          <span className={`text-sm font-bold shrink-0 mr-2 ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
+                          </span>
                         </div>
-                        <span className={`text-sm font-bold ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                          {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-                  {filteredData.visits.length === 0 && filteredData.expenses.length === 0 && (
-                    <div className="text-center text-muted-foreground py-6 text-sm">لا توجد عمليات</div>
-                  )}
+                      ))}
+                    {filteredData.visits.length === 0 && filteredData.expenses.length === 0 && (
+                      <div className="text-center text-muted-foreground py-6 text-sm">لا توجد عمليات</div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

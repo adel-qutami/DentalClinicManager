@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 
 const patientSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
-  phone: z.string().regex(/^(7\d{8}|0?7\d{8})$/, "رقم الهاتف يجب أن يبدأ بـ 7 ويتكون من 9 أرقام"),
+  phone: z.string().min(7, "رقم الهاتف قصير جداً").max(20, "رقم الهاتف طويل جداً").regex(/^[\+\d][\d\s\-]{5,18}$/, "رقم الهاتف غير صحيح"),
   age: z.string().transform((val) => parseInt(val, 10)),
   gender: z.enum(["male", "female"]),
   notes: z.string().optional(),
