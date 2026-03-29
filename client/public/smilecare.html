@@ -871,7 +871,7 @@
                                     <i class="fa-solid fa-phone absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                                 </div>
                             </div>
-                            <p id="phoneError" class="hidden mt-1 text-xs text-red-500 font-bold">رقم الهاتف يجب أن يكون 9 أرقام يبدأ بـ 7</p>
+                            <p id="phoneError" class="hidden mt-1 text-xs text-red-500 font-bold">رقم الهاتف غير صحيح للدولة المختارة</p>
                         </div>
 
                         <div class="input-group">
@@ -1091,10 +1091,46 @@
                 }
             });
 
+            function isValidPhone(phone, countryCode) {
+                if (!phone) return true;
+                if (phone.length !== 9) return false;
+                if (countryCode === '+966') return phone.startsWith('5');
+                if (countryCode === '+967') return phone.startsWith('7');
+                return phone.length === 9;
+            }
+
+            function getPhoneError(countryCode) {
+                if (countryCode === '+966') return 'رقم الهاتف يجب أن يكون 9 أرقام يبدأ بـ 5 (سعودي)';
+                if (countryCode === '+967') return 'رقم الهاتف يجب أن يكون 9 أرقام يبدأ بـ 7 (يمني)';
+                return 'رقم الهاتف غير صحيح';
+            }
+
+            function updatePhonePlaceholder() {
+                const code = document.getElementById('countryCode').value;
+                const input = document.getElementById('phone');
+                input.placeholder = code === '+966' ? '5XXXXXXXX' : '7XXXXXXXX';
+            }
+
+            document.getElementById('countryCode').addEventListener('change', function() {
+                updatePhonePlaceholder();
+                const phoneInput = document.getElementById('phone');
+                const phoneError = document.getElementById('phoneError');
+                if (phoneInput.value) {
+                    if (!isValidPhone(phoneInput.value, this.value)) {
+                        phoneError.textContent = getPhoneError(this.value);
+                        phoneError.classList.remove('hidden');
+                    } else {
+                        phoneError.classList.add('hidden');
+                    }
+                }
+            });
+
             document.getElementById('phone').addEventListener('input', function() {
                 this.value = this.value.replace(/\D/g, '').slice(0, 9);
+                const countryCode = document.getElementById('countryCode').value;
                 const phoneError = document.getElementById('phoneError');
-                if (this.value && (this.value.length !== 9 || !this.value.startsWith('7'))) {
+                if (this.value && !isValidPhone(this.value, countryCode)) {
+                    phoneError.textContent = getPhoneError(countryCode);
                     phoneError.classList.remove('hidden');
                 } else {
                     phoneError.classList.add('hidden');
@@ -1107,7 +1143,8 @@
                 const countryCode = document.getElementById('countryCode').value;
                 const phoneRaw = document.getElementById('phone').value.trim();
                 const phoneError = document.getElementById('phoneError');
-                if (phoneRaw && (phoneRaw.length !== 9 || !phoneRaw.startsWith('7'))) {
+                if (phoneRaw && !isValidPhone(phoneRaw, countryCode)) {
+                    phoneError.textContent = getPhoneError(countryCode);
                     phoneError.classList.remove('hidden');
                     document.getElementById('phone').focus();
                     return;
