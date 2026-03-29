@@ -18,7 +18,7 @@ import {
   Plus, Download, TrendingUp, TrendingDown, Wallet, ArrowDownCircle,
   Stethoscope, Users, CalendarCheck, FileSpreadsheet, FileText, X, Trash2,
   AlertCircle, Receipt, BarChart3, PiggyBank, BadgeDollarSign, Edit, Check,
-  CircleDollarSign, Building2, ShoppingCart, Zap, DollarSign
+  Building2, ShoppingCart, Zap, DollarSign
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,16 +44,11 @@ const expenseSchema = z.object({
   notes: z.string().optional(),
 });
 
-const categorySchema = z.object({
-  name: z.string().min(2, "اسم التصنيف مطلوب"),
-  type: z.enum(['operational', 'fixed']),
-});
 
 export default function Finance() {
   const {
     expenses, visits, appointments, patients, services, expenseCategories,
     addExpense, updateExpense, deleteExpense,
-    addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
   } = useStore();
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
@@ -63,9 +58,6 @@ export default function Finance() {
   const [expenseFilter, setExpenseFilter] = useState<string>('all');
   const [expenseSearch, setExpenseSearch] = useState('');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
-  const [showCategoryForm, setShowCategoryForm] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
   const [isWithdrawalSubmitting, setIsWithdrawalSubmitting] = useState(false);
   const { toast } = useToast();
@@ -92,15 +84,6 @@ export default function Finance() {
     defaultValues: { title: "", amount: undefined as any, date: "", category: "", type: "operational", notes: "" },
   });
 
-  const categoryForm = useForm<z.infer<typeof categorySchema>>({
-    resolver: zodResolver(categorySchema),
-    defaultValues: { name: "", type: "operational" },
-  });
-
-  const editCategoryForm = useForm<z.infer<typeof categorySchema>>({
-    resolver: zodResolver(categorySchema),
-    defaultValues: { name: "", type: "operational" },
-  });
 
   async function confirmDeleteExpense() {
     if (!deleteExpenseId) return;
@@ -184,39 +167,6 @@ export default function Finance() {
     } else {
       toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
     }
-  }
-
-  async function onCategorySubmit(values: z.infer<typeof categorySchema>) {
-    const result = await addExpenseCategory(values);
-    if (result.success) {
-      setShowCategoryForm(false);
-      categoryForm.reset({ name: "", type: "operational" });
-      toast({ title: "تم الإضافة", description: "تم إضافة التصنيف بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-    }
-  }
-
-  async function onEditCategorySubmit(values: z.infer<typeof categorySchema>) {
-    if (!editingCategoryId) return;
-    const result = await updateExpenseCategory(editingCategoryId, values);
-    if (result.success) {
-      setEditingCategoryId(null);
-      toast({ title: "تم التحديث", description: "تم تعديل التصنيف بنجاح" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-    }
-  }
-
-  async function confirmDeleteCategory() {
-    if (!deleteCategoryId) return;
-    const result = await deleteExpenseCategory(deleteCategoryId);
-    if (result.success) {
-      toast({ title: "تم الحذف", description: "تم حذف التصنيف" });
-    } else {
-      toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
-    }
-    setDeleteCategoryId(null);
   }
 
   const filteredData = useMemo(() => {
@@ -459,7 +409,7 @@ export default function Finance() {
       </div>
 
       <Tabs defaultValue="reports" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
           <TabsTrigger value="reports" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-reports">
             <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             التقارير
@@ -471,10 +421,6 @@ export default function Finance() {
           <TabsTrigger value="withdrawals" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-withdrawals">
             <ArrowDownCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             السحبيات
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-categories">
-            <CircleDollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            التصنيفات
           </TabsTrigger>
         </TabsList>
 
@@ -1210,126 +1156,6 @@ export default function Finance() {
             )}
           </div>
         </TabsContent>
-
-        {/* ═══════════════════ CATEGORIES TAB ═══════════════════ */}
-        <TabsContent value="categories" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">إدارة تصنيفات المصروفات</h3>
-            <Button size="sm" className="gap-1.5" onClick={() => { setShowCategoryForm(!showCategoryForm); categoryForm.reset({ name: "", type: "operational" }); }} data-testid="btn-add-category">
-              {showCategoryForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              {showCategoryForm ? "إلغاء" : "إضافة تصنيف"}
-            </Button>
-          </div>
-
-          {showCategoryForm && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4">
-                <Form {...categoryForm}>
-                  <form onSubmit={categoryForm.handleSubmit(onCategorySubmit)} className="grid gap-4 grid-cols-1 sm:grid-cols-3 items-end">
-                    <FormField control={categoryForm.control} name="name" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>اسم التصنيف</FormLabel>
-                        <FormControl><Input {...field} placeholder="مثال: مشتريات" data-testid="input-category-name" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={categoryForm.control} name="type" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>النوع</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger data-testid="select-category-type"><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="operational">تشغيلي</SelectItem>
-                            <SelectItem value="fixed">ثابت</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <Button type="submit" className="gap-1.5" data-testid="btn-submit-category"><Plus className="w-4 h-4" />إضافة</Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="text-right">اسم التصنيف</TableHead>
-                  <TableHead className="text-right">النوع</TableHead>
-                  <TableHead className="text-right w-[100px]">عدد المصروفات</TableHead>
-                  <TableHead className="text-left w-[120px]">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenseCategories.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-16 text-muted-foreground">
-                      <CircleDollarSign className="w-10 h-10 mx-auto mb-2 text-muted-foreground/20" />
-                      <p className="text-sm">لا توجد تصنيفات - أضف تصنيفاً جديداً</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  expenseCategories.map(cat => {
-                    const catExpenseCount = expenses.filter(e => e.category === cat.name).length;
-                    return editingCategoryId === cat.id ? (
-                      <TableRow key={cat.id} className="bg-blue-50/50 dark:bg-blue-950/10">
-                        <TableCell colSpan={4}>
-                          <Form {...editCategoryForm}>
-                            <form onSubmit={editCategoryForm.handleSubmit(onEditCategorySubmit)} className="grid gap-3 grid-cols-3 items-end py-2">
-                              <FormField control={editCategoryForm.control} name="name" render={({ field }) => (
-                                <FormItem><FormLabel className="text-xs">اسم التصنيف</FormLabel><FormControl><Input {...field} className="h-8 text-xs" data-testid="input-edit-category-name" /></FormControl></FormItem>
-                              )} />
-                              <FormField control={editCategoryForm.control} name="type" render={({ field }) => (
-                                <FormItem><FormLabel className="text-xs">النوع</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="operational">تشغيلي</SelectItem>
-                                      <SelectItem value="fixed">ثابت</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                              <div className="flex gap-1">
-                                <Button type="submit" size="sm" className="h-8 px-3 text-xs gap-1"><Check className="w-3 h-3" />حفظ</Button>
-                                <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setEditingCategoryId(null)}>إلغاء</Button>
-                              </div>
-                            </form>
-                          </Form>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <TableRow key={cat.id} className="group hover:bg-muted/30">
-                        <TableCell className="font-medium">{cat.name}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cat.type === 'fixed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
-                            {cat.type === 'fixed' ? 'ثابت' : 'تشغيلي'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{catExpenseCount}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" data-testid={`btn-edit-category-${cat.id}`}
-                              onClick={() => { setEditingCategoryId(cat.id); editCategoryForm.reset({ name: cat.name, type: cat.type as 'operational' | 'fixed' }); }}>
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" data-testid={`btn-delete-category-${cat.id}`}
-                              onClick={() => setDeleteCategoryId(cat.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
       </Tabs>
 
       <AlertDialog open={!!deleteExpenseId} onOpenChange={(open) => { if (!open) setDeleteExpenseId(null); }}>
@@ -1359,33 +1185,6 @@ export default function Finance() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!deleteCategoryId} onOpenChange={(open) => { if (!open) setDeleteCategoryId(null); }}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-right text-destructive">تأكيد حذف التصنيف</AlertDialogTitle>
-            <AlertDialogDescription className="text-right">
-              {(() => {
-                const cat = (expenseCategories || []).find(c => c.id === deleteCategoryId);
-                const count = cat ? (expenses || []).filter(e => e.category === cat.name).length : 0;
-                return cat
-                  ? <>هل أنت متأكد من حذف تصنيف <strong>{cat.name}</strong>؟{count > 0 && <> (مرتبط بـ <strong>{count}</strong> مصروف)</>}<br /></>
-                  : <>هل أنت متأكد من حذف هذا التصنيف؟<br /></>;
-              })()}
-              <span className="text-destructive font-medium">لا يمكن التراجع عن هذه العملية.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction
-              onClick={confirmDeleteCategory}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              data-testid="btn-confirm-delete-category"
-            >
-              حذف
-            </AlertDialogAction>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

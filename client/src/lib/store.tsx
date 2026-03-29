@@ -112,6 +112,7 @@ interface StoreContextType {
   addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateAppointment: (id: string, appt: Partial<Appointment>) => Promise<{ success: boolean; error?: string }>;
   deleteAppointment: (id: string) => Promise<{ success: boolean; error?: string }>;
+  refreshAppointments: () => Promise<void>;
   
   addVisit: (visit: Omit<Visit, 'id'>) => Promise<{ success: boolean; error?: string }>;
   updateVisit: (id: string, visit: Partial<Visit>) => Promise<{ success: boolean; error?: string }>;
@@ -388,6 +389,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshAppointments = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/appointments`, { credentials: 'include' });
+      if (res.ok) setAppointments(await res.json());
+    } catch {}
+  }, []);
+
   const addVisit = async (visit: Omit<Visit, 'id'>): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE}/visits`, {
@@ -644,7 +652,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       user, authLoading, login, logout, register, can,
       patients, services, appointments, visits, expenses, expenseCategories, doctors, loading,
       addPatient, updatePatient, deletePatient,
-      addAppointment, updateAppointment, deleteAppointment,
+      addAppointment, updateAppointment, deleteAppointment, refreshAppointments,
       addVisit, updateVisit, deleteVisit,
       addExpense, updateExpense, deleteExpense,
       addService, updateService, deleteService,

@@ -33,7 +33,7 @@ const appointmentSchema = z.object({
 const ITEMS_PER_PAGE = 15;
 
 export default function Appointments() {
-  const { appointments, patients, doctors, addAppointment, updateAppointment, deleteAppointment } = useStore();
+  const { appointments, patients, doctors, addAppointment, updateAppointment, deleteAppointment, refreshAppointments } = useStore();
   const [showForm, setShowForm] = useState(false);
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -117,6 +117,7 @@ export default function Appointments() {
         if (result.success) {
           closeForm();
           toast({ title: "تم الحجز", description: "تم إضافة الموعد بنجاح" });
+          refreshAppointments();
         } else {
           toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
         }
