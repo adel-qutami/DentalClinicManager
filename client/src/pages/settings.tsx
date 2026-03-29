@@ -835,51 +835,68 @@ function BackupTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `smilecare-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `smilecare-backup-${new Date().toISOString().slice(0, 10)}.json.gz`;
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: "تم التصدير", description: "تم تنزيل ملف النسخة الاحتياطية" });
     } finally { setIsExporting(false); }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function readFileText(file: File): Promise<string> {
+    if (file.name.endsWith(".gz")) {
+      const ds = new DecompressionStream("gzip");
+      const stream = file.stream().pipeThrough(ds);
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const total = chunks.reduce((acc, c) => acc + c.length, 0);
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+      return new TextDecoder().decode(merged);
+    }
+    return file.text();
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.name.endsWith(".json")) {
-      toast({ title: "ملف غير صالح", description: "يرجى اختيار ملف JSON", variant: "destructive" });
+    if (!file.name.endsWith(".json") && !file.name.endsWith(".json.gz")) {
+      toast({ title: "ملف غير صالح", description: "يرجى اختيار ملف JSON أو JSON.GZ", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target?.result as string);
-        if (!parsed?.version || !parsed?.data) {
-          toast({ title: "ملف غير صالح", description: "الملف لا يحتوي على نسخة احتياطية صحيحة", variant: "destructive" });
-          if (fileRef.current) fileRef.current.value = "";
-          return;
-        }
-        const d = parsed.data;
-        const summary: BackupSummary = {
-          exportedAt: parsed.exportedAt,
-          counts: {
-            users: d.users?.length ?? 0,
-            patients: d.patients?.length ?? 0,
-            services: d.services?.length ?? 0,
-            appointments: d.appointments?.length ?? 0,
-            visits: d.visits?.length ?? 0,
-            expenses: d.expenses?.length ?? 0,
-            payments: d.payments?.length ?? 0,
-          },
-        };
-        setPendingFile(file);
-        setPendingSummary(summary);
-        setShowRestoreConfirm(true);
-      } catch {
-        toast({ title: "ملف غير صالح", description: "تعذّر قراءة الملف", variant: "destructive" });
+    try {
+      const text = await readFileText(file);
+      const parsed = JSON.parse(text);
+      if (!parsed?.version || !parsed?.data) {
+        toast({ title: "ملف غير صالح", description: "الملف لا يحتوي على نسخة احتياطية صحيحة", variant: "destructive" });
         if (fileRef.current) fileRef.current.value = "";
+        return;
       }
-    };
-    reader.readAsText(file);
+      const d = parsed.data;
+      const summary: BackupSummary = {
+        exportedAt: parsed.exportedAt,
+        counts: {
+          users: d.users?.length ?? 0,
+          patients: d.patients?.length ?? 0,
+          services: d.services?.length ?? 0,
+          appointments: d.appointments?.length ?? 0,
+          visits: d.visits?.length ?? 0,
+          expenses: d.expenses?.length ?? 0,
+          payments: d.payments?.length ?? 0,
+        },
+      };
+      setPendingFile(file);
+      setPendingSummary(summary);
+      setShowRestoreConfirm(true);
+    } catch {
+      toast({ title: "ملف غير صالح", description: "تعذّر قراءة الملف أو فك الضغط", variant: "destructive" });
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function confirmRestore() {
@@ -934,7 +951,7 @@ function BackupTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} data-testid="input-restore-file" />
+          <input ref={fileRef} type="file" accept=".json,.json.gz" className="hidden" onChange={handleFileChange} data-testid="input-restore-file" />
           <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={isImporting} className="gap-2 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20" data-testid="button-choose-restore-file">
             {isImporting ? <><Loader2 className="w-4 h-4 animate-spin" />جاري الاستيراد...</> : <><Upload className="w-4 h-4" />اختيار ملف النسخة الاحتياطية</>}
           </Button>

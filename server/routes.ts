@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { db } from "./db";
 import path from "path";
 import fs from "fs";
+import { promisify } from "util";
+import { gzip, gunzip } from "zlib";
 import multer from "multer";
 import {
   insertPatientSchema,
@@ -18,7 +20,6 @@ import {
 import { z, ZodError } from "zod";
 import { sql as drizzleSql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { hasPermission, type Role, type Permission } from "@shared/permissions";
@@ -26,6 +27,8 @@ import { calculateTotalFromItems, validatePaymentAmount, validateEditVisitTotal 
 
 const BCRYPT_ROUNDS = 12;
 const scryptAsync = promisify(scrypt);
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -932,10 +935,12 @@ export async function registerRoutes(
         },
       };
 
-      const filename = `smilecare-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const json = JSON.stringify(backup);
+      const compressed = await gzipAsync(Buffer.from(json, "utf-8"));
+      const filename = `smilecare-backup-${new Date().toISOString().slice(0, 10)}.json.gz`;
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.setHeader("Content-Type", "application/json");
-      res.json(backup);
+      res.setHeader("Content-Type", "application/gzip");
+      res.end(compressed);
     } catch (error: any) {
       res.status(500).json({ message: "فشل تصدير النسخة الاحتياطية: " + (error?.message || "") });
     }
@@ -963,7 +968,12 @@ export async function registerRoutes(
         }
         let backup: any;
         try {
-          backup = JSON.parse(req.file.buffer.toString("utf-8"));
+          let rawBuffer = req.file.buffer;
+          // auto-detect gzip magic bytes (0x1f 0x8b) and decompress if needed
+          if (rawBuffer[0] === 0x1f && rawBuffer[1] === 0x8b) {
+            rawBuffer = await gunzipAsync(rawBuffer);
+          }
+          backup = JSON.parse(rawBuffer.toString("utf-8"));
         } catch {
           return res.status(400).json({ message: "ملف النسخة الاحتياطية غير صالح أو تالف" });
         }
