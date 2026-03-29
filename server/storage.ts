@@ -146,7 +146,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(users)
-      .where(sql`${users.role} IN ('doctor', 'dentist', 'manager')`);
+      .where(sql`${users.role} IN ('doctor', 'dentist')`);
   }
 
   async updateUser(id: string, data: Partial<InsertUser>): Promise<User> {
