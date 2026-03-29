@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import path from "path";
 import fs from "fs";
+import multer from "multer";
 import {
   insertPatientSchema,
   insertAppointmentSchema,
@@ -940,9 +941,19 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/restore", requireAuth, requirePermission("users_manage"), async (req, res) => {
+  const restoreUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+
+  app.post("/api/admin/restore", requireAuth, requirePermission("users_manage"), restoreUpload.single("backup"), async (req, res) => {
     try {
-      const backup = req.body;
+      if (!req.file) {
+        return res.status(400).json({ message: "لم يتم رفع أي ملف" });
+      }
+      let backup: any;
+      try {
+        backup = JSON.parse(req.file.buffer.toString("utf-8"));
+      } catch {
+        return res.status(400).json({ message: "ملف النسخة الاحتياطية غير صالح أو تالف" });
+      }
       if (!backup?.version || !backup?.data) {
         return res.status(400).json({ message: "ملف النسخة الاحتياطية غير صالح" });
       }

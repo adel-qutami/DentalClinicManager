@@ -888,13 +888,12 @@ function BackupTab() {
     setShowRestoreConfirm(false);
     setPendingSummary(null);
     try {
-      const text = await pendingFile.text();
-      const json = JSON.parse(text);
+      const formData = new FormData();
+      formData.append("backup", pendingFile);
       const res = await fetch("/api/admin/restore", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(json),
+        body: formData,
       });
       const data: RestoreResult = await res.json();
       if (res.ok) {
