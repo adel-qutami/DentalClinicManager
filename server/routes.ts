@@ -950,19 +950,7 @@ export async function registerRoutes(
       const { randomUUID: genUUID } = await import("crypto");
 
       await db.transaction(async (tx) => {
-        await tx.execute(drizzleSql`SET session_replication_role = 'replica'`);
-
-        await tx.execute(drizzleSql`TRUNCATE TABLE audit_logs CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE public_bookings CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE visit_items CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE payments CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE expenses CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE expense_categories CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE visits CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE appointments CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE services CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE patients CASCADE`);
-        await tx.execute(drizzleSql`TRUNCATE TABLE users CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE audit_logs, public_bookings, visit_items, payments, expenses, expense_categories, visits, appointments, services, patients, users RESTART IDENTITY CASCADE`);
 
         if (data.users?.length) {
           for (const u of data.users) {
@@ -1016,11 +1004,10 @@ export async function registerRoutes(
         }
         if (data.auditLogs?.length) {
           for (const log of data.auditLogs) {
-            await tx.execute(drizzleSql`INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details, created_at) VALUES (${log.id}, ${log.userId ?? null}, ${log.action}, ${log.entity}, ${log.entityId ?? null}, ${log.details ? JSON.stringify(log.details) : null}, ${log.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
+            await tx.execute(drizzleSql`INSERT INTO audit_logs (id, user_id, entity_name, entity_id, action_type, old_values, new_values, ip_address, user_agent, created_at) VALUES (${log.id}, ${log.userId ?? null}, ${log.entityName ?? ''}, ${log.entityId ?? ''}, ${log.actionType ?? ''}, ${log.oldValues ? JSON.stringify(log.oldValues) : null}, ${log.newValues ? JSON.stringify(log.newValues) : null}, ${log.ipAddress ?? null}, ${log.userAgent ?? null}, ${log.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
           }
         }
 
-        await tx.execute(drizzleSql`SET session_replication_role = 'origin'`);
       });
 
       if (data.clinicSettings) {
