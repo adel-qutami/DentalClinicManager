@@ -48,7 +48,13 @@ const patientSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
   countryCode: z.string().default("+967"),
   phone: z.string().min(6, "رقم الهاتف قصير جداً").max(15, "رقم الهاتف طويل جداً").regex(/^\d[\d\s\-]{4,14}$/, "أدخل الأرقام فقط بدون رمز الدولة"),
-  age: z.string().transform((val) => parseInt(val, 10)),
+  age: z.string()
+    .min(1, "العمر مطلوب")
+    .refine((val) => {
+      const n = parseInt(val, 10);
+      return !isNaN(n) && n >= 1 && n <= 150;
+    }, "العمر يجب أن يكون بين 1 و 150 سنة")
+    .transform((val) => parseInt(val, 10)),
   gender: z.enum(["male", "female"]),
   notes: z.string().optional(),
 });
@@ -151,6 +157,17 @@ export default function Patients() {
 
   async function onSubmit(values: z.infer<typeof patientSchema>) {
     if (isSubmitting || submittingRef.current) return;
+
+    const normalizedName = values.name.trim().replace(/\s+/g, " ");
+    const duplicate = (patients || []).find((p) => {
+      if (editingPatient && p.id === editingPatient.id) return false;
+      return p.name.trim().replace(/\s+/g, " ").toLowerCase() === normalizedName.toLowerCase();
+    });
+    if (duplicate) {
+      form.setError("name", { message: "يوجد مريض بنفس الاسم بالفعل" });
+      return;
+    }
+
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -516,9 +533,10 @@ export default function Patients() {
                       <FormLabel>العمر</FormLabel>
                       <FormControl>
                         <Input
-                          type="number" placeholder="العمر"
+                          type="number" placeholder="العمر" min="1" max="150"
                           {...field} value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "-" || e.key === "+" || e.key === "e") e.preventDefault(); }}
                           data-testid="input-patient-age"
                         />
                       </FormControl>
