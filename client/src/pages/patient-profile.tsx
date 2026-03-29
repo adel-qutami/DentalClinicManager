@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function PatientProfile({ id }: { id: string }) {
   const {
-    patients, visits, appointments, services, loading,
+    patients, visits, appointments, services, doctors, loading,
     getVisitPayments, getService, deleteVisit, deleteAppointment, updateAppointment, addPayment
   } = useStore();
   const [, navigate] = useLocation();
@@ -333,7 +333,7 @@ export default function PatientProfile({ id }: { id: string }) {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold">{visit.date}</span>
-                            <span className="text-sm text-muted-foreground">— {visit.doctorName}</span>
+                            <span className="text-sm text-muted-foreground">— {doctors.find(d => d.id === visit.doctorId)?.username || visit.doctorName || ""}</span>
                             {remaining <= 0 ? (
                               <Badge className="bg-green-600 text-[10px]">مسدد بالكامل</Badge>
                             ) : (
@@ -458,7 +458,7 @@ export default function PatientProfile({ id }: { id: string }) {
                   {patientAppointments.map((appt) => (
                     <TableRow key={appt.id} className="hover:bg-muted/30 transition-colors group" data-testid={`row-appointment-${appt.id}`}>
                       <TableCell className="font-medium">{appt.date}</TableCell>
-                      <TableCell>{appt.doctorName}</TableCell>
+                      <TableCell>{doctors.find(d => d.id === appt.doctorId)?.username || appt.doctorName || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">
                           {appt.period === 'morning' ? 'صباحاً' : 'مساءً'}

@@ -23,7 +23,7 @@ const ITEMS_PER_PAGE = 10;
 
 const visitSchema = z.object({
   patientId: z.string().min(1, "المريض مطلوب"),
-  doctorName: z.string().min(1, "الدكتور مطلوب"),
+  doctorId: z.string().min(1, "الطبيب مطلوب"),
   date: z.string().min(1, "التاريخ مطلوب"),
   items: z.array(z.object({
     serviceId: z.string().min(1, "الخدمة مطلوبة"),
@@ -39,7 +39,7 @@ type ViewMode = "list" | "new" | "edit" | "detail" | "payment";
 type PaymentFilter = "all" | "unpaid" | "paid";
 
 export default function Visits() {
-  const { visits, patients, services, loading, addVisit, updateVisit, deleteVisit, addPayment, getVisitPayments, getService } = useStore();
+  const { visits, patients, services, doctors, loading, addVisit, updateVisit, deleteVisit, addPayment, getVisitPayments, getService } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [newPaymentAmount, setNewPaymentAmount] = useState<string>("");
@@ -58,7 +58,7 @@ export default function Visits() {
     resolver: zodResolver(visitSchema),
     defaultValues: {
       patientId: "",
-      doctorName: "د. سامي",
+      doctorId: "",
       date: format(new Date(), "yyyy-MM-dd"),
       items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
@@ -74,7 +74,7 @@ export default function Visits() {
     resolver: zodResolver(visitSchema),
     defaultValues: {
       patientId: "",
-      doctorName: "",
+      doctorId: "",
       date: "",
       items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
@@ -103,7 +103,7 @@ export default function Visits() {
     setVisitPayments([]);
     form.reset({
       patientId: "",
-      doctorName: "د. سامي",
+      doctorId: "",
       date: format(new Date(), "yyyy-MM-dd"),
       items: [{ serviceId: "", price: "" as any, quantity: 1, toothNumbers: [], jawType: "single_tooth" }],
       paidAmount: undefined,
@@ -131,12 +131,15 @@ export default function Visits() {
           quantity: item.quantity,
         };
       });
+      const selectedDoctor = doctors.find(d => d.id === values.doctorId);
       const result = await addVisit({
         ...values,
+        doctorId: values.doctorId,
+        doctorName: selectedDoctor?.username || null,
         items: itemsWithTeeth,
         totalAmount,
         paidAmount: values.paidAmount || 0,
-      });
+      } as any);
       if (result.success) {
         resetAndGoToList();
         toast({ title: "تم تسجيل الزيارة", description: "تم حفظ بيانات الزيارة والدفع بنجاح" });
@@ -152,7 +155,7 @@ export default function Visits() {
     setSelectedVisit(visit);
     editForm.reset({
       patientId: visit.patientId,
-      doctorName: visit.doctorName,
+      doctorId: visit.doctorId || "",
       date: visit.date,
       items: visit.items.map(item => ({
         serviceId: item.serviceId,
@@ -188,8 +191,10 @@ export default function Visits() {
         };
       });
 
+      const selectedDoctor = doctors.find(d => d.id === values.doctorId);
       const result = await updateVisit(selectedVisit.id, {
-        doctorName: values.doctorName,
+        doctorId: values.doctorId,
+        doctorName: selectedDoctor?.username || null,
         date: values.date,
         totalAmount: editTotalAmount,
         items: editItemsWithTeeth,
@@ -372,20 +377,20 @@ export default function Visits() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="doctorName"
+                    name="doctorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>الدكتور المعالج</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormLabel>الطبيب المعالج</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-doctor">
-                              <SelectValue placeholder="اختر الدكتور" />
+                              <SelectValue placeholder="اختر الطبيب" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="د. سامي">د. سامي</SelectItem>
-                            <SelectItem value="د. نورة">د. نورة</SelectItem>
-                            <SelectItem value="د. أحمد">د. أحمد</SelectItem>
+                            {doctors.map(d => (
+                              <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -607,20 +612,20 @@ export default function Visits() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={editForm.control}
-                    name="doctorName"
+                    name="doctorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>الدكتور المعالج</FormLabel>
+                        <FormLabel>الطبيب المعالج</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="edit-select-doctor">
-                              <SelectValue placeholder="اختر الدكتور" />
+                              <SelectValue placeholder="اختر الطبيب" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="د. سامي">د. سامي</SelectItem>
-                            <SelectItem value="د. نورة">د. نورة</SelectItem>
-                            <SelectItem value="د. أحمد">د. أحمد</SelectItem>
+                            {doctors.map(d => (
+                              <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -815,7 +820,7 @@ export default function Visits() {
               </div>
               <div>
                 <span className="text-muted-foreground block text-xs mb-1">الدكتور</span>
-                <span className="font-medium" data-testid="text-detail-doctor">{selectedVisit.doctorName}</span>
+                <span className="font-medium" data-testid="text-detail-doctor">{doctors.find(d => d.id === selectedVisit.doctorId)?.username || selectedVisit.doctorName || "—"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block text-xs mb-1">التاريخ</span>
@@ -1138,7 +1143,7 @@ export default function Visits() {
                       <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span>{visit.date}</span>
                         <span>•</span>
-                        <span>{visit.doctorName}</span>
+                        <span>{doctors.find(d => d.id === visit.doctorId)?.username || visit.doctorName || "—"}</span>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
                         {visit.items.map(i => getService(i.serviceId)?.name).filter(Boolean).join(' • ')}

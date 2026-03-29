@@ -34,7 +34,7 @@ import {
   type PublicBooking,
   type InsertPublicBooking,
 } from "@shared/schema";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -42,6 +42,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
+  getDoctors(): Promise<User[]>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User>;
   updateUserPermissions(id: string, permissions: string[] | null): Promise<User>;
   deleteUser(id: string): Promise<void>;
@@ -99,7 +100,7 @@ export interface IStorage {
   getFinancialReport(filters: {
     startDate?: string;
     endDate?: string;
-    doctorName?: string;
+    doctorId?: string;
     serviceType?: string;
   }): Promise<{
     visits: (Visit & { items: VisitItem[] })[];
@@ -135,6 +136,13 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users);
   }
 
+  async getDoctors(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(sql`${users.role} IN ('doctor', 'dentist', 'manager')`);
+  }
+
   async updateUser(id: string, data: Partial<InsertUser>): Promise<User> {
     const result = await db
       .update(users)
@@ -158,12 +166,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPatient(id: string): Promise<Patient | undefined> {
-    const result = await db.select().from(patients).where(eq(patients.id, id));
+    const result = await db
+      .select()
+      .from(patients)
+      .where(and(eq(patients.id, id), isNull(patients.deletedAt)));
     return result[0];
   }
 
   async getAllPatients(): Promise<Patient[]> {
-    return await db.select().from(patients).orderBy(desc(patients.createdAt));
+    return await db
+      .select()
+      .from(patients)
+      .where(isNull(patients.deletedAt))
+      .orderBy(desc(patients.createdAt));
   }
 
   async createPatient(patient: InsertPatient): Promise<Patient> {
@@ -179,20 +194,40 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(patients)
       .set(patient)
-      .where(eq(patients.id, id))
+      .where(and(eq(patients.id, id), isNull(patients.deletedAt)))
       .returning();
     return result[0];
   }
 
   async deletePatient(id: string): Promise<void> {
-    const patientVisits = await db.select({ id: visits.id }).from(visits).where(eq(visits.patientId, id));
+    const now = new Date();
+    const patientVisits = await db
+      .select({ id: visits.id })
+      .from(visits)
+      .where(and(eq(visits.patientId, id), isNull(visits.deletedAt)));
+
     for (const v of patientVisits) {
+      await db
+        .update(payments)
+        .set({ deletedAt: now })
+        .where(and(eq(payments.visitId, v.id), isNull(payments.deletedAt)));
       await db.delete(visitItems).where(eq(visitItems.visitId, v.id));
-      await db.delete(payments).where(eq(payments.visitId, v.id));
     }
-    await db.delete(visits).where(eq(visits.patientId, id));
-    await db.delete(appointments).where(eq(appointments.patientId, id));
-    await db.delete(patients).where(eq(patients.id, id));
+
+    await db
+      .update(visits)
+      .set({ deletedAt: now })
+      .where(and(eq(visits.patientId, id), isNull(visits.deletedAt)));
+
+    await db
+      .update(appointments)
+      .set({ deletedAt: now })
+      .where(and(eq(appointments.patientId, id), isNull(appointments.deletedAt)));
+
+    await db
+      .update(patients)
+      .set({ deletedAt: now })
+      .where(eq(patients.id, id));
   }
 
   async getService(id: string): Promise<Service | undefined> {
@@ -230,12 +265,16 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(appointments)
-      .where(eq(appointments.id, id));
+      .where(and(eq(appointments.id, id), isNull(appointments.deletedAt)));
     return result[0];
   }
 
   async getAllAppointments(): Promise<Appointment[]> {
-    return await db.select().from(appointments).orderBy(desc(appointments.createdAt));
+    return await db
+      .select()
+      .from(appointments)
+      .where(isNull(appointments.deletedAt))
+      .orderBy(desc(appointments.createdAt));
   }
 
   async getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]> {
@@ -246,7 +285,8 @@ export class DatabaseStorage implements IStorage {
         and(
           gte(appointments.date, startDate),
           lte(appointments.date, endDate),
-          eq(appointments.status, "scheduled")
+          eq(appointments.status, "scheduled"),
+          isNull(appointments.deletedAt),
         )
       );
   }
@@ -264,17 +304,23 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(appointments)
       .set(appointment)
-      .where(eq(appointments.id, id))
+      .where(and(eq(appointments.id, id), isNull(appointments.deletedAt)))
       .returning();
     return result[0];
   }
 
   async deleteAppointment(id: string): Promise<void> {
-    await db.delete(appointments).where(eq(appointments.id, id));
+    await db
+      .update(appointments)
+      .set({ deletedAt: new Date() })
+      .where(eq(appointments.id, id));
   }
 
   async getVisit(id: string): Promise<(Visit & { items: VisitItem[] }) | undefined> {
-    const visit = await db.select().from(visits).where(eq(visits.id, id));
+    const visit = await db
+      .select()
+      .from(visits)
+      .where(and(eq(visits.id, id), isNull(visits.deletedAt)));
     if (!visit[0]) return undefined;
 
     const items = await db
@@ -285,13 +331,17 @@ export class DatabaseStorage implements IStorage {
     const paidSums = await db
       .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
       .from(payments)
-      .where(eq(payments.visitId, id));
+      .where(and(eq(payments.visitId, id), isNull(payments.deletedAt)));
 
     return { ...visit[0], paidAmount: paidSums[0]?.total ?? '0', items };
   }
 
   async getAllVisits(): Promise<(Visit & { items: VisitItem[] })[]> {
-    const allVisits = await db.select().from(visits).orderBy(desc(visits.createdAt));
+    const allVisits = await db
+      .select()
+      .from(visits)
+      .where(isNull(visits.deletedAt))
+      .orderBy(desc(visits.createdAt));
 
     const paidSums = await db
       .select({
@@ -299,6 +349,7 @@ export class DatabaseStorage implements IStorage {
         total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)`,
       })
       .from(payments)
+      .where(isNull(payments.deletedAt))
       .groupBy(payments.visitId);
 
     const paidMap = new Map(paidSums.map(p => [p.visitId, p.total]));
@@ -373,7 +424,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(visits)
       .set(visit as any)
-      .where(eq(visits.id, id))
+      .where(and(eq(visits.id, id), isNull(visits.deletedAt)))
       .returning();
 
     const items = await db
@@ -384,7 +435,7 @@ export class DatabaseStorage implements IStorage {
     const paidSums = await db
       .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
       .from(payments)
-      .where(eq(payments.visitId, id));
+      .where(and(eq(payments.visitId, id), isNull(payments.deletedAt)));
 
     return { ...result[0], paidAmount: paidSums[0]?.total ?? '0', items };
   }
@@ -400,7 +451,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(visits)
         .set(visit as any)
-        .where(eq(visits.id, id));
+        .where(and(eq(visits.id, id), isNull(visits.deletedAt)));
     }
 
     const insertedItems = await Promise.all(
@@ -414,31 +465,46 @@ export class DatabaseStorage implements IStorage {
       })
     );
 
-    const updatedVisit = await db.select().from(visits).where(eq(visits.id, id));
+    const updatedVisit = await db
+      .select()
+      .from(visits)
+      .where(and(eq(visits.id, id), isNull(visits.deletedAt)));
+
     const paidSums = await db
       .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
       .from(payments)
-      .where(eq(payments.visitId, id));
+      .where(and(eq(payments.visitId, id), isNull(payments.deletedAt)));
 
     return { ...updatedVisit[0], paidAmount: paidSums[0]?.total ?? '0', items: insertedItems };
   }
 
   async deleteVisit(id: string): Promise<void> {
-    await db.delete(payments).where(eq(payments.visitId, id));
+    const now = new Date();
+    await db
+      .update(payments)
+      .set({ deletedAt: now })
+      .where(and(eq(payments.visitId, id), isNull(payments.deletedAt)));
     await db.delete(visitItems).where(eq(visitItems.visitId, id));
-    await db.delete(visits).where(eq(visits.id, id));
+    await db
+      .update(visits)
+      .set({ deletedAt: now })
+      .where(eq(visits.id, id));
   }
 
   async getPaymentsForVisit(visitId: string): Promise<Payment[]> {
     return await db
       .select()
       .from(payments)
-      .where(eq(payments.visitId, visitId))
+      .where(and(eq(payments.visitId, visitId), isNull(payments.deletedAt)))
       .orderBy(desc(payments.createdAt));
   }
 
   async getAllPayments(): Promise<Payment[]> {
-    return await db.select().from(payments).orderBy(desc(payments.createdAt));
+    return await db
+      .select()
+      .from(payments)
+      .where(isNull(payments.deletedAt))
+      .orderBy(desc(payments.createdAt));
   }
 
   async createPayment(payment: InsertPayment): Promise<Payment> {
@@ -452,11 +518,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllExpenses(): Promise<Expense[]> {
-    return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
+    return await db
+      .select()
+      .from(expenses)
+      .where(isNull(expenses.deletedAt))
+      .orderBy(desc(expenses.createdAt));
   }
 
   async getExpense(id: string): Promise<Expense | undefined> {
-    const result = await db.select().from(expenses).where(eq(expenses.id, id));
+    const result = await db
+      .select()
+      .from(expenses)
+      .where(and(eq(expenses.id, id), isNull(expenses.deletedAt)));
     return result[0];
   }
 
@@ -477,13 +550,16 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .update(expenses)
       .set(updateData)
-      .where(eq(expenses.id, id))
+      .where(and(eq(expenses.id, id), isNull(expenses.deletedAt)))
       .returning();
     return result[0];
   }
 
   async deleteExpense(id: string): Promise<void> {
-    await db.delete(expenses).where(eq(expenses.id, id));
+    await db
+      .update(expenses)
+      .set({ deletedAt: new Date() })
+      .where(eq(expenses.id, id));
   }
 
   async getAllExpenseCategories(): Promise<ExpenseCategory[]> {
@@ -515,8 +591,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]> {
-    let query = db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
-
     if (entityName && entityId) {
       return await db.select().from(auditLogs)
         .where(and(eq(auditLogs.entityName, entityName), eq(auditLogs.entityId, entityId)))
@@ -526,34 +600,38 @@ export class DatabaseStorage implements IStorage {
         .where(eq(auditLogs.entityName, entityName))
         .orderBy(desc(auditLogs.createdAt));
     }
-
-    return await query;
+    return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
   }
-
 
   async getFinancialReport(filters: {
     startDate?: string;
     endDate?: string;
-    doctorName?: string;
+    doctorId?: string;
     serviceType?: string;
   }): Promise<{
     visits: (Visit & { items: VisitItem[] })[];
     expenses: Expense[];
     payments: Payment[];
   }> {
-    const conditions: any[] = [];
+    const conditions: any[] = [isNull(visits.deletedAt)];
     if (filters.startDate) conditions.push(gte(visits.date, filters.startDate));
     if (filters.endDate) conditions.push(lte(visits.date, filters.endDate));
-    if (filters.doctorName) conditions.push(eq(visits.doctorName, filters.doctorName));
+    if (filters.doctorId) conditions.push(eq(visits.doctorId, filters.doctorId));
 
-    const filteredVisits = conditions.length > 0
-      ? await db.select().from(visits).where(and(...conditions)).orderBy(desc(visits.createdAt))
-      : await db.select().from(visits).orderBy(desc(visits.createdAt));
+    const filteredVisits = await db
+      .select()
+      .from(visits)
+      .where(and(...conditions))
+      .orderBy(desc(visits.createdAt));
 
     let visitsWithItems = await Promise.all(
       filteredVisits.map(async (visit) => {
         const items = await db.select().from(visitItems).where(eq(visitItems.visitId, visit.id));
-        return { ...visit, items };
+        const paidSums = await db
+          .select({ total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)` })
+          .from(payments)
+          .where(and(eq(payments.visitId, visit.id), isNull(payments.deletedAt)));
+        return { ...visit, paidAmount: paidSums[0]?.total ?? '0', items };
       })
     );
 
@@ -563,15 +641,21 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    const expenseConditions: any[] = [];
+    const expenseConditions: any[] = [isNull(expenses.deletedAt)];
     if (filters.startDate) expenseConditions.push(gte(expenses.date, filters.startDate));
     if (filters.endDate) expenseConditions.push(lte(expenses.date, filters.endDate));
 
-    const filteredExpenses = expenseConditions.length > 0
-      ? await db.select().from(expenses).where(and(...expenseConditions)).orderBy(desc(expenses.createdAt))
-      : await db.select().from(expenses).orderBy(desc(expenses.createdAt));
+    const filteredExpenses = await db
+      .select()
+      .from(expenses)
+      .where(and(...expenseConditions))
+      .orderBy(desc(expenses.createdAt));
 
-    const allPayments = await db.select().from(payments).orderBy(desc(payments.createdAt));
+    const allPayments = await db
+      .select()
+      .from(payments)
+      .where(isNull(payments.deletedAt))
+      .orderBy(desc(payments.createdAt));
 
     return {
       visits: visitsWithItems,

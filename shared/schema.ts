@@ -9,6 +9,8 @@ import {
   timestamp,
   json,
   boolean,
+  index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -30,16 +32,52 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-export const patients = pgTable("patients", {
+export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  countryCode: text("country_code").notNull().default("+967"),
-  phone: text("phone").notNull(),
-  age: integer("age").notNull(),
-  gender: text("gender").notNull(),
-  notes: text("notes"),
+  name: text("name").notNull().unique(),
+  description: text("description"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const insertRoleSchema = createInsertSchema(roles).pick({ name: true, description: true });
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Role = typeof roles.$inferSelect;
+
+export const permissions = pgTable("permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+});
+
+export const insertPermissionSchema = createInsertSchema(permissions).pick({ name: true, description: true });
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+export type Permission = typeof permissions.$inferSelect;
+
+export const rolePermissions = pgTable("role_permissions", {
+  roleId: varchar("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+  permissionId: varchar("permission_id").notNull().references(() => permissions.id, { onDelete: "cascade" }),
+});
+
+export const userRoles = pgTable("user_roles", {
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  roleId: varchar("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+});
+
+export const patients = pgTable(
+  "patients",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    countryCode: text("country_code").notNull().default("+967"),
+    phone: text("phone").notNull(),
+    age: integer("age").notNull(),
+    gender: text("gender").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [index("idx_patients_phone").on(table.phone)],
+);
 
 export const insertPatientSchema = createInsertSchema(patients)
   .pick({
@@ -81,20 +119,27 @@ export const insertServiceSchema = createInsertSchema(services).pick({
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Service = typeof services.$inferSelect;
 
-export const appointments = pgTable("appointments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  patientId: varchar("patient_id").notNull().references(() => patients.id),
-  doctorName: text("doctor_name").notNull(),
-  date: date("date").notNull(),
-  period: text("period").notNull(),
-  status: text("status").notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    patientId: varchar("patient_id").notNull().references(() => patients.id),
+    doctorId: varchar("doctor_id").references(() => users.id),
+    doctorName: text("doctor_name"),
+    date: date("date").notNull(),
+    period: text("period").notNull(),
+    status: text("status").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [index("idx_appointments_patient_id").on(table.patientId)],
+);
 
 export const insertAppointmentSchema = createInsertSchema(appointments)
   .pick({
     patientId: true,
+    doctorId: true,
     doctorName: true,
     date: true,
     period: true,
@@ -103,7 +148,8 @@ export const insertAppointmentSchema = createInsertSchema(appointments)
   })
   .extend({
     patientId: z.string().min(1, "المريض مطلوب"),
-    doctorName: z.string().min(1, "اسم الطبيب مطلوب"),
+    doctorId: z.string().optional().nullable(),
+    doctorName: z.string().optional().nullable(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
     period: z.enum(["morning", "evening"]),
     status: z.enum(["scheduled", "completed", "cancelled"]),
@@ -112,15 +158,20 @@ export const insertAppointmentSchema = createInsertSchema(appointments)
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
-export const payments = pgTable("payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  visitId: varchar("visit_id").notNull().references(() => visits.id),
-  date: date("date").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  type: text("type").notNull().default("manual"),
-  note: text("note"),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+export const payments = pgTable(
+  "payments",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    visitId: varchar("visit_id").notNull().references(() => visits.id),
+    date: date("date").notNull(),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    type: text("type").notNull().default("manual"),
+    note: text("note"),
+    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [index("idx_payments_visit_id").on(table.visitId)],
+);
 
 export const insertPaymentSchema = createInsertSchema(payments)
   .pick({
@@ -170,21 +221,28 @@ export const insertVisitItemSchema = createInsertSchema(visitItems)
 export type InsertVisitItem = z.infer<typeof insertVisitItemSchema>;
 export type VisitItem = typeof visitItems.$inferSelect;
 
-export const visits = pgTable("visits", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  patientId: varchar("patient_id").notNull().references(() => patients.id),
-  date: date("date").notNull(),
-  doctorName: text("doctor_name").notNull(),
-  diagnosis: text("diagnosis"),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+export const visits = pgTable(
+  "visits",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    patientId: varchar("patient_id").notNull().references(() => patients.id),
+    date: date("date").notNull(),
+    doctorId: varchar("doctor_id").references(() => users.id),
+    doctorName: text("doctor_name"),
+    diagnosis: text("diagnosis"),
+    totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [index("idx_visits_patient_id").on(table.patientId)],
+);
 
 export const insertVisitSchema = createInsertSchema(visits)
   .pick({
     patientId: true,
     date: true,
+    doctorId: true,
     doctorName: true,
     diagnosis: true,
     totalAmount: true,
@@ -192,7 +250,8 @@ export const insertVisitSchema = createInsertSchema(visits)
   })
   .extend({
     patientId: z.string().min(1, "المريض مطلوب"),
-    doctorName: z.string().min(1, "اسم الطبيب مطلوب"),
+    doctorId: z.string().optional().nullable(),
+    doctorName: z.string().optional().nullable(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ غير صالح"),
     totalAmount: z.coerce.number().min(0, "الإجمالي لا يمكن أن يكون سالباً"),
   });
@@ -209,6 +268,7 @@ export const expenses = pgTable("expenses", {
   type: text("type").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses)
@@ -256,6 +316,8 @@ export const auditLogs = pgTable("audit_logs", {
   actionType: text("action_type").notNull(),
   oldValues: json("old_values"),
   newValues: json("new_values"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -267,6 +329,8 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs)
     actionType: true,
     oldValues: true,
     newValues: true,
+    ipAddress: true,
+    userAgent: true,
   });
 
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
@@ -295,25 +359,3 @@ export const insertPublicBookingSchema = createInsertSchema(publicBookings)
 
 export type InsertPublicBooking = z.infer<typeof insertPublicBookingSchema>;
 export type PublicBooking = typeof publicBookings.$inferSelect;
-
-export const reminderLogs = pgTable("reminder_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  appointmentId: varchar("appointment_id").notNull().references(() => appointments.id),
-  channel: text("channel").notNull(),
-  status: text("status").notNull(),
-  sentAt: timestamp("sent_at"),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const insertReminderLogSchema = createInsertSchema(reminderLogs)
-  .pick({
-    appointmentId: true,
-    channel: true,
-    status: true,
-    sentAt: true,
-    errorMessage: true,
-  });
-
-export type InsertReminderLog = z.infer<typeof insertReminderLogSchema>;
-export type ReminderLog = typeof reminderLogs.$inferSelect;

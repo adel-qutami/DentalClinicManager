@@ -48,6 +48,21 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful endpoints under `/api` prefix
 - **Build Process**: esbuild bundles server code, Vite bundles client code
 
+### Database Improvements (completed)
+- `doctor_id` FK added to visits and appointments (references `users.id`); `doctor_name` kept nullable for legacy data
+- Soft delete (`deleted_at`) on patients, visits, appointments, payments, expenses
+- `reminder_logs` table dropped
+- `ip_address` and `user_agent` added to `audit_logs`
+- CHECK constraints on amount fields
+- 13 performance indexes
+- RBAC tables: roles, permissions, role_permissions, user_roles (4 roles, 20 permissions seeded)
+- `/api/users/doctors` endpoint returns users with role in (doctor, dentist, manager)
+
+### Frontend Doctor Migration (completed)
+- Visits, appointments, patient-profile: doctor dropdowns now populated dynamically from `/api/users/doctors`
+- All doctor display fields fall back to legacy `doctor_name` for existing seeded records
+- `doctors` state added to global store and fetched on startup
+
 ### Data Storage
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Schema Location**: `shared/schema.ts` contains all table definitions

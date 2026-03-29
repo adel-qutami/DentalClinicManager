@@ -28,10 +28,17 @@ export interface Service {
   requiresTeethSelection: boolean;
 }
 
+export interface DoctorUser {
+  id: string;
+  username: string;
+  role: string;
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
-  doctorName: string;
+  doctorId?: string | null;
+  doctorName?: string | null;
   date: string;
   period: 'morning' | 'evening';
   status: 'scheduled' | 'completed' | 'cancelled';
@@ -57,7 +64,8 @@ export interface Visit {
   id: string;
   patientId: string;
   date: string;
-  doctorName: string;
+  doctorId?: string | null;
+  doctorName?: string | null;
   items: VisitItem[];
   totalAmount: string | number;
   paidAmount: string | number;
@@ -93,6 +101,7 @@ interface StoreContextType {
   visits: Visit[];
   expenses: Expense[];
   expenseCategories: ExpenseCategory[];
+  doctors: DoctorUser[];
   loading: boolean;
   
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
@@ -138,6 +147,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [doctors, setDoctors] = useState<DoctorUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -161,19 +171,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const fetchOpts = { credentials: 'include' as RequestCredentials };
-      const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes, catRes] = await Promise.all([
+      const [patientsRes, servicesRes, appointmentsRes, visitsRes, expensesRes, catRes, doctorsRes] = await Promise.all([
         fetch(`${API_BASE}/patients`, fetchOpts),
         fetch(`${API_BASE}/services`, fetchOpts),
         fetch(`${API_BASE}/appointments`, fetchOpts),
         fetch(`${API_BASE}/visits`, fetchOpts),
         fetch(`${API_BASE}/expenses`, fetchOpts),
         fetch(`${API_BASE}/expense-categories`, fetchOpts),
+        fetch(`${API_BASE}/users/doctors`, fetchOpts),
       ]);
 
       if (patientsRes.ok) setPatients(await patientsRes.json());
       if (servicesRes.ok) setServices(await servicesRes.json());
       if (appointmentsRes.ok) setAppointments(await appointmentsRes.json());
       if (visitsRes.ok) setVisits(await visitsRes.json());
+      if (doctorsRes.ok) setDoctors(await doctorsRes.json());
       if (expensesRes.ok) setExpenses(await expensesRes.json());
       if (catRes.ok) setExpenseCategories(await catRes.json());
     } catch (error) {
@@ -629,7 +641,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider value={{
       user, authLoading, login, logout, register, can,
-      patients, services, appointments, visits, expenses, expenseCategories, loading,
+      patients, services, appointments, visits, expenses, expenseCategories, doctors, loading,
       addPatient, updatePatient, deletePatient,
       addAppointment, updateAppointment, deleteAppointment,
       addVisit, updateVisit, deleteVisit,

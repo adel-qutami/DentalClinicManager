@@ -53,12 +53,34 @@ async function upgradePasswordIfNeeded(userId: string, stored: string, plaintext
   }
 }
 
+function getClientIp(req: Request): string {
+  return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+}
+
 function formatZodError(error: unknown): string {
   if (error instanceof ZodError) {
     return error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
   }
   if (error instanceof Error) return error.message;
   return "بيانات غير صالحة";
+}
+
+async function auditLog(
+  req: Request,
+  log: { userId?: string | null; entityName: string; entityId: string; actionType: string; oldValues?: any; newValues?: any }
+) {
+  try {
+    await storage.createAuditLog({
+      userId: log.userId ?? null,
+      entityName: log.entityName,
+      entityId: log.entityId,
+      actionType: log.actionType,
+      oldValues: log.oldValues ?? null,
+      newValues: log.newValues ?? null,
+      ipAddress: getClientIp(req),
+      userAgent: (req.headers["user-agent"] as string) || null,
+    });
+  } catch (_) {}
 }
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -204,7 +226,7 @@ export async function registerRoutes(
         .object({
           username: z.string().min(3),
           password: z.string().min(4),
-          role: z.enum(["receptionist", "dentist", "manager"]).default("manager"),
+          role: z.enum(["receptionist", "dentist", "manager", "doctor"]).default("manager"),
         })
         .parse(req.body);
       const existing = await storage.getUserByUsername(username);
@@ -712,7 +734,7 @@ export async function registerRoutes(
       const filters = {
         startDate: req.query.startDate as string | undefined,
         endDate: req.query.endDate as string | undefined,
-        doctorName: req.query.doctorName as string | undefined,
+        doctorId: req.query.doctorId as string | undefined,
         serviceType: req.query.serviceType as string | undefined,
       };
       const report = await storage.getFinancialReport(filters);
@@ -732,9 +754,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/doctors", requireAuth, async (_req, res) => {
+    try {
+      const doctors = await storage.getDoctors();
+      const safeDoctors = doctors.map(({ password, ...u }) => u);
+      res.json(safeDoctors);
+    } catch (error) {
+      res.status(500).json({ message: "فشل جلب قائمة الأطباء" });
+    }
+  });
+
   app.patch("/api/users/:id/role", requireAuth, requirePermission("users_manage"), async (req, res) => {
     try {
-      const { role } = z.object({ role: z.enum(["receptionist", "dentist", "manager"]) }).parse(req.body);
+      const { role } = z.object({ role: z.enum(["receptionist", "dentist", "manager", "doctor"]) }).parse(req.body);
       const user = await storage.updateUser(req.params.id, { role });
       const { password, ...safeUser } = user;
       res.json(safeUser);
@@ -749,7 +781,7 @@ export async function registerRoutes(
         .object({
           username: z.string().min(3),
           password: z.string().min(4),
-          role: z.enum(["receptionist", "dentist", "manager"]),
+          role: z.enum(["receptionist", "dentist", "manager", "doctor"]),
         })
         .parse(req.body);
       const existing = await storage.getUserByUsername(username);

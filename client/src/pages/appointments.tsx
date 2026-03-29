@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const appointmentSchema = z.object({
   patientId: z.string().min(1, "المريض مطلوب"),
-  doctorName: z.string().min(2, "اسم الدكتور مطلوب"),
+  doctorId: z.string().min(1, "الطبيب مطلوب"),
   date: z.string().min(1, "التاريخ مطلوب"),
   period: z.enum(["morning", "evening"]),
   notes: z.string().optional(),
@@ -33,7 +33,7 @@ const appointmentSchema = z.object({
 const ITEMS_PER_PAGE = 15;
 
 export default function Appointments() {
-  const { appointments, patients, addAppointment, updateAppointment, deleteAppointment } = useStore();
+  const { appointments, patients, doctors, addAppointment, updateAppointment, deleteAppointment } = useStore();
   const [showForm, setShowForm] = useState(false);
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function Appointments() {
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       patientId: "",
-      doctorName: "د. سامي",
+      doctorId: "",
       date: format(new Date(), "yyyy-MM-dd"),
       period: "morning",
       notes: "",
@@ -68,7 +68,7 @@ export default function Appointments() {
     setEditingAppt(null);
     form.reset({
       patientId: "",
-      doctorName: "د. سامي",
+      doctorId: "",
       date: format(new Date(), "yyyy-MM-dd"),
       period: "morning",
       notes: "",
@@ -80,7 +80,7 @@ export default function Appointments() {
     setEditingAppt(appt);
     form.reset({
       patientId: appt.patientId,
-      doctorName: appt.doctorName,
+      doctorId: appt.doctorId || "",
       date: appt.date,
       period: appt.period as "morning" | "evening",
       notes: appt.notes || "",
@@ -99,8 +99,13 @@ export default function Appointments() {
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
+      const selectedDoctor = doctors.find(d => d.id === values.doctorId);
+      const payload = {
+        ...values,
+        doctorName: selectedDoctor?.username || null,
+      } as any;
       if (editingAppt) {
-        const result = await updateAppointment(editingAppt.id, values);
+        const result = await updateAppointment(editingAppt.id, payload);
         if (result.success) {
           closeForm();
           toast({ title: "تم التحديث", description: "تم تحديث الموعد بنجاح" });
@@ -108,7 +113,7 @@ export default function Appointments() {
           toast({ title: "فشلت العملية", description: result.error, variant: "destructive" });
         }
       } else {
-        const result = await addAppointment({ ...values, status: 'scheduled' });
+        const result = await addAppointment({ ...payload, status: 'scheduled' });
         if (result.success) {
           closeForm();
           toast({ title: "تم الحجز", description: "تم إضافة الموعد بنجاح" });
@@ -145,7 +150,8 @@ export default function Appointments() {
   const filteredAppointments = [...appointments]
     .filter(a => {
       const patient = patients.find(p => p.id === a.patientId);
-      const matchesSearch = !search || patient?.name.includes(search) || patient?.phone.includes(search) || a.doctorName.includes(search);
+      const doctorName = doctors.find(d => d.id === a.doctorId)?.username || a.doctorName || "";
+      const matchesSearch = !search || patient?.name.includes(search) || patient?.phone?.includes(search) || doctorName.includes(search);
       const matchesStatus = statusFilter === "all" || a.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
@@ -257,7 +263,7 @@ export default function Appointments() {
                           {patient?.name || 'مريض محذوف'}
                         </div>
                       </TableCell>
-                      <TableCell>{appt.doctorName}</TableCell>
+                      <TableCell>{doctors.find(d => d.id === appt.doctorId)?.username || appt.doctorName || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">
                           {appt.period === 'morning' ? 'صباحاً' : 'مساءً'}
@@ -313,7 +319,7 @@ export default function Appointments() {
                         </div>
                         <div>
                           <p className="font-semibold text-sm">{patient?.name || 'مريض محذوف'}</p>
-                          <p className="text-xs text-muted-foreground">{appt.doctorName}</p>
+                          <p className="text-xs text-muted-foreground">{doctors.find(d => d.id === appt.doctorId)?.username || appt.doctorName || "—"}</p>
                         </div>
                       </div>
                       {statusBadge(appt.status)}
@@ -384,20 +390,20 @@ export default function Appointments() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
-                  name="doctorName"
+                  name="doctorId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>الدكتور</FormLabel>
+                      <FormLabel>الطبيب</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-doctor">
-                            <SelectValue placeholder="اختر الدكتور" />
+                            <SelectValue placeholder="اختر الطبيب" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="د. سامي">د. سامي</SelectItem>
-                          <SelectItem value="د. نورة">د. نورة</SelectItem>
-                          <SelectItem value="د. أحمد">د. أحمد</SelectItem>
+                          {doctors.map(d => (
+                            <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
