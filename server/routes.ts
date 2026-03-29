@@ -955,7 +955,7 @@ export async function registerRoutes(
 
         if (data.users?.length) {
           for (const u of data.users) {
-            await tx.execute(drizzleSql`INSERT INTO users (id, username, password, role, custom_permissions) VALUES (${u.id}, ${u.username}, ${u.password}, ${u.role}, ${u.customPermissions ? JSON.stringify(u.customPermissions) : null}) ON CONFLICT (id) DO NOTHING`);
+            await tx.execute(drizzleSql`INSERT INTO users (id, username, password, role, custom_permissions, display_name) VALUES (${u.id}, ${u.username}, ${u.password}, ${u.role}, ${u.customPermissions ? JSON.stringify(u.customPermissions) : null}, ${u.displayName ?? null}) ON CONFLICT (id) DO NOTHING`);
           }
         }
         if (data.expenseCategories?.length) {
@@ -983,7 +983,8 @@ export async function registerRoutes(
             await tx.execute(drizzleSql`INSERT INTO visits (id, patient_id, date, doctor_id, doctor_name, diagnosis, total_amount, notes, created_at, deleted_at) VALUES (${v.id}, ${v.patientId}, ${v.date}, ${v.doctorId ?? null}, ${v.doctorName ?? null}, ${v.diagnosis ?? null}, ${String(v.totalAmount)}, ${v.notes ?? null}, ${v.createdAt ?? new Date().toISOString()}, ${v.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
             if (v.items?.length) {
               for (const item of v.items) {
-                await tx.execute(drizzleSql`INSERT INTO visit_items (id, visit_id, service_id, price, quantity, tooth_numbers, jaw_type) VALUES (${item.id ?? genUUID()}, ${v.id}, ${item.serviceId}, ${String(item.price)}, ${item.quantity ?? 1}, ${item.toothNumbers ?? null}, ${item.jawType ?? null}) ON CONFLICT (id) DO NOTHING`);
+                const toothNums = Array.isArray(item.toothNumbers) && item.toothNumbers.length > 0 ? item.toothNumbers : null;
+                await tx.execute(drizzleSql`INSERT INTO visit_items (id, visit_id, service_id, price, quantity, tooth_numbers, jaw_type) VALUES (${item.id ?? genUUID()}, ${v.id}, ${item.serviceId}, ${String(item.price)}, ${item.quantity ?? 1}, ${toothNums}, ${item.jawType ?? null}) ON CONFLICT (id) DO NOTHING`);
               }
             }
           }
