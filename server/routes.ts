@@ -941,6 +941,7 @@ export async function registerRoutes(
     }
   });
 
+  // memoryStorage: no body-parser size cap; restore is bounded only by available server RAM
   const restoreUpload = multer({ storage: multer.memoryStorage() });
 
   app.post(
