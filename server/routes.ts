@@ -941,18 +941,13 @@ export async function registerRoutes(
     }
   });
 
-  const restoreUpload = multer({
-    storage: multer.diskStorage({
-      destination: (_req, _file, cb) => cb(null, "/tmp"),
-      filename: (_req, _file, cb) => cb(null, `smilecare-restore-${Date.now()}.json`),
-    }),
-  });
+  const restoreUpload = multer({ storage: multer.memoryStorage() });
 
   app.post(
     "/api/admin/restore",
     requireAuth,
     requirePermission("users_manage"),
-    (req, res, next) => {
+    (req: Request, res: Response, next: NextFunction) => {
       restoreUpload.single("backup")(req, res, (err) => {
         if (err) {
           return res.status(400).json({ message: "فشل رفع الملف: " + (err?.message || String(err)) });
@@ -961,15 +956,13 @@ export async function registerRoutes(
       });
     },
     async (req: Request, res: Response) => {
-      const tempPath = (req as any).file?.path as string | undefined;
       try {
-        if (!tempPath) {
+        if (!req.file) {
           return res.status(400).json({ message: "لم يتم رفع أي ملف" });
         }
         let backup: any;
         try {
-          const content = fs.readFileSync(tempPath, "utf-8");
-          backup = JSON.parse(content);
+          backup = JSON.parse(req.file.buffer.toString("utf-8"));
         } catch {
           return res.status(400).json({ message: "ملف النسخة الاحتياطية غير صالح أو تالف" });
         }
@@ -1067,10 +1060,6 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       res.status(500).json({ message: "فشل استيراد النسخة الاحتياطية: " + (error?.message || "") });
-    } finally {
-      if (tempPath) {
-        try { fs.unlinkSync(tempPath); } catch {}
-      }
     }
   },
   );
