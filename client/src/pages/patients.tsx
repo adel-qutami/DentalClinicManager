@@ -454,58 +454,60 @@ export default function Patients() {
                 )}
               />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormItem className="sm:col-span-1">
-                  <FormLabel>رقم الهاتف</FormLabel>
-                  <div className="flex gap-0">
+                <div className="space-y-2 sm:col-span-1">
+                  <label className="text-sm font-medium leading-none">رقم الهاتف</label>
+                  <div className="flex">
                     <FormField
                       control={form.control}
                       name="countryCode"
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className="w-[110px] rounded-l-none border-l-0 shrink-0" data-testid="select-country-code" dir="ltr">
-                            <SelectValue>
-                              {(() => {
-                                const c = COUNTRY_CODES.find(x => x.code === field.value);
-                                return c ? `${c.flag} ${c.code}` : field.value;
-                              })()}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRY_CODES.map(c => (
-                              <SelectItem key={c.code} value={c.code} dir="rtl">
-                                <span className="flex items-center gap-2">
-                                  <span>{c.flag}</span>
-                                  <span>{c.name}</span>
-                                  <span className="text-muted-foreground text-xs" dir="ltr">{c.code}</span>
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormItem className="shrink-0">
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-[105px] rounded-l-none border-l-0" data-testid="select-country-code" dir="ltr">
+                                <SelectValue>
+                                  {(() => {
+                                    const c = COUNTRY_CODES.find(x => x.code === field.value);
+                                    return c ? `${c.flag} ${c.code}` : field.value;
+                                  })()}
+                                </SelectValue>
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {COUNTRY_CODES.map(c => (
+                                <SelectItem key={c.code} value={c.code} dir="rtl">
+                                  <span className="flex items-center gap-2">
+                                    <span>{c.flag}</span>
+                                    <span>{c.name}</span>
+                                    <span className="text-muted-foreground text-xs" dir="ltr">{c.code}</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
                       )}
                     />
                     <FormField
                       control={form.control}
                       name="phone"
                       render={({ field }) => (
-                        <FormControl>
-                          <Input
-                            placeholder="7xxxxxxxx"
-                            {...field}
-                            data-testid="input-patient-phone"
-                            className="rounded-r-none flex-1"
-                            dir="ltr"
-                          />
-                        </FormControl>
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Input
+                              placeholder="7xxxxxxxx"
+                              {...field}
+                              data-testid="input-patient-phone"
+                              className="rounded-r-none"
+                              dir="ltr"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={() => <FormMessage />}
-                  />
-                </FormItem>
+                </div>
                 <FormField
                   control={form.control}
                   name="age"
