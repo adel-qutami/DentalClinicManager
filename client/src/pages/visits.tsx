@@ -135,7 +135,7 @@ export default function Visits() {
       const result = await addVisit({
         ...values,
         doctorId: values.doctorId,
-        doctorName: selectedDoctor?.username || null,
+        doctorName: selectedDoctor?.displayName || selectedDoctor?.username || null,
         items: itemsWithTeeth,
         totalAmount,
         paidAmount: values.paidAmount || 0,
@@ -194,7 +194,7 @@ export default function Visits() {
       const selectedDoctor = doctors.find(d => d.id === values.doctorId);
       const result = await updateVisit(selectedVisit.id, {
         doctorId: values.doctorId,
-        doctorName: selectedDoctor?.username || null,
+        doctorName: selectedDoctor?.displayName || selectedDoctor?.username || null,
         date: values.date,
         totalAmount: editTotalAmount,
         items: editItemsWithTeeth,
@@ -389,7 +389,7 @@ export default function Visits() {
                           </FormControl>
                           <SelectContent>
                             {doctors.map(d => (
-                              <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                              <SelectItem key={d.id} value={d.id}>{d.displayName || d.username}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -624,7 +624,7 @@ export default function Visits() {
                           </FormControl>
                           <SelectContent>
                             {doctors.map(d => (
-                              <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                              <SelectItem key={d.id} value={d.id}>{d.displayName || d.username}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -820,7 +820,7 @@ export default function Visits() {
               </div>
               <div>
                 <span className="text-muted-foreground block text-xs mb-1">الدكتور</span>
-                <span className="font-medium" data-testid="text-detail-doctor">{doctors.find(d => d.id === selectedVisit.doctorId)?.username || selectedVisit.doctorName || "—"}</span>
+                <span className="font-medium" data-testid="text-detail-doctor">{(() => { const d = doctors.find(x => x.id === selectedVisit.doctorId); return d?.displayName || d?.username || selectedVisit.doctorName || "—"; })()}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block text-xs mb-1">التاريخ</span>
@@ -1143,7 +1143,7 @@ export default function Visits() {
                       <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span>{visit.date}</span>
                         <span>•</span>
-                        <span>{doctors.find(d => d.id === visit.doctorId)?.username || visit.doctorName || "—"}</span>
+                        <span>{(() => { const d = doctors.find(x => x.id === visit.doctorId); return d?.displayName || d?.username || visit.doctorName || "—"; })()}</span>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
                         {visit.items.map(i => getService(i.serviceId)?.name).filter(Boolean).join(' • ')}

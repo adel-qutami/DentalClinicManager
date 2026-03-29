@@ -102,7 +102,7 @@ export default function Appointments() {
       const selectedDoctor = doctors.find(d => d.id === values.doctorId);
       const payload = {
         ...values,
-        doctorName: selectedDoctor?.username || null,
+        doctorName: selectedDoctor?.displayName || selectedDoctor?.username || null,
       } as any;
       if (editingAppt) {
         const result = await updateAppointment(editingAppt.id, payload);
@@ -150,7 +150,8 @@ export default function Appointments() {
   const filteredAppointments = [...appointments]
     .filter(a => {
       const patient = patients.find(p => p.id === a.patientId);
-      const doctorName = doctors.find(d => d.id === a.doctorId)?.username || a.doctorName || "";
+      const doctorObj = doctors.find(d => d.id === a.doctorId);
+      const doctorName = doctorObj?.displayName || doctorObj?.username || a.doctorName || "";
       const matchesSearch = !search || patient?.name.includes(search) || patient?.phone?.includes(search) || doctorName.includes(search);
       const matchesStatus = statusFilter === "all" || a.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -263,7 +264,7 @@ export default function Appointments() {
                           {patient?.name || 'مريض محذوف'}
                         </div>
                       </TableCell>
-                      <TableCell>{doctors.find(d => d.id === appt.doctorId)?.username || appt.doctorName || "—"}</TableCell>
+                      <TableCell>{(() => { const d = doctors.find(x => x.id === appt.doctorId); return d?.displayName || d?.username || appt.doctorName || "—"; })()}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">
                           {appt.period === 'morning' ? 'صباحاً' : 'مساءً'}
@@ -319,7 +320,7 @@ export default function Appointments() {
                         </div>
                         <div>
                           <p className="font-semibold text-sm">{patient?.name || 'مريض محذوف'}</p>
-                          <p className="text-xs text-muted-foreground">{doctors.find(d => d.id === appt.doctorId)?.username || appt.doctorName || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{(() => { const d = doctors.find(x => x.id === appt.doctorId); return d?.displayName || d?.username || appt.doctorName || "—"; })()}</p>
                         </div>
                       </div>
                       {statusBadge(appt.status)}
@@ -402,7 +403,7 @@ export default function Appointments() {
                         </FormControl>
                         <SelectContent>
                           {doctors.map(d => (
-                            <SelectItem key={d.id} value={d.id}>{d.username}</SelectItem>
+                            <SelectItem key={d.id} value={d.id}>{d.displayName || d.username}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

@@ -21,12 +21,14 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().default("manager"),
   customPermissions: json("custom_permissions").$type<string[] | null>(),
+  displayName: text("display_name"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   role: true,
+  displayName: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

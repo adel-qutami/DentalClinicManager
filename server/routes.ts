@@ -777,18 +777,19 @@ export async function registerRoutes(
 
   app.post("/api/users", requireAuth, requirePermission("users_manage"), async (req, res) => {
     try {
-      const { username, password, role } = z
+      const { username, password, role, displayName } = z
         .object({
           username: z.string().min(3),
           password: z.string().min(4),
           role: z.enum(["receptionist", "dentist", "manager", "doctor"]),
+          displayName: z.string().optional().nullable(),
         })
         .parse(req.body);
       const existing = await storage.getUserByUsername(username);
       if (existing) {
         return res.status(409).json({ message: "اسم المستخدم مستخدم بالفعل" });
       }
-      const user = await storage.createUser({ username, password: await hashPassword(password), role });
+      const user = await storage.createUser({ username, password: await hashPassword(password), role, displayName: displayName || null });
       const { password: _, ...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {

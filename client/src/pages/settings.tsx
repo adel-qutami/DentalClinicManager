@@ -365,6 +365,7 @@ const PERMISSION_GROUPS = [
 interface UserRecord {
   id: string;
   username: string;
+  displayName?: string | null;
   role: Role;
   customPermissions?: string[] | null;
 }
@@ -384,9 +385,9 @@ function UsersTab() {
   const [useCustomPerms, setUseCustomPerms] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
 
-  type AddUserValues = { username: string; password: string; role: Role };
+  type AddUserValues = { username: string; password: string; role: Role; displayName: string };
   const addUserForm = useForm<AddUserValues>({
-    defaultValues: { username: "", password: "", role: "receptionist" },
+    defaultValues: { username: "", password: "", role: "receptionist", displayName: "" },
   });
 
   const { data: users = [], isLoading } = useQuery<UserRecord[]>({
@@ -520,11 +521,12 @@ function UsersTab() {
           return (
             <div key={u.id} className={cn("rounded-xl border p-4 flex items-center gap-4 flex-wrap", meta.bgColor, meta.borderColor)}>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                {u.username.charAt(0).toUpperCase()}
+                {(u.displayName || u.username).charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-sm" data-testid={`text-username-${u.id}`}>{u.username}</p>
+                  {u.displayName && <p className="font-semibold text-sm" data-testid={`text-displayname-${u.id}`}>{u.displayName}</p>}
+                  <p className={cn("text-sm", u.displayName ? "text-muted-foreground" : "font-semibold")} data-testid={`text-username-${u.id}`}>{u.username}</p>
                   {isMe && <Badge variant="outline" className="text-[10px] py-0">أنت</Badge>}
                 </div>
                 <span className={cn("text-xs font-medium", meta.color)}>{meta.label}</span>
@@ -556,6 +558,10 @@ function UsersTab() {
         <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader><DialogTitle className="text-right">إضافة مستخدم جديد</DialogTitle></DialogHeader>
           <form onSubmit={addUserForm.handleSubmit(handleAddUser)} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">الاسم الظاهر <span className="text-muted-foreground text-xs">(اختياري — يظهر عند اختيار الطبيب)</span></label>
+              <Input {...addUserForm.register("displayName")} placeholder="مثال: د. أحمد العمري" data-testid="input-new-displayname" />
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">اسم المستخدم</label>
               <Input {...addUserForm.register("username")} placeholder="اسم المستخدم" data-testid="input-new-username" />

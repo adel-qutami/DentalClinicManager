@@ -31,6 +31,7 @@ export interface Service {
 export interface DoctorUser {
   id: string;
   username: string;
+  displayName?: string | null;
   role: string;
 }
 
