@@ -33,7 +33,8 @@ export type User = typeof users.$inferSelect;
 export const patients = pgTable("patients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  phone: text("phone").notNull().unique(),
+  countryCode: text("country_code").notNull().default("+967"),
+  phone: text("phone").notNull(),
   age: integer("age").notNull(),
   gender: text("gender").notNull(),
   notes: text("notes"),
@@ -43,6 +44,7 @@ export const patients = pgTable("patients", {
 export const insertPatientSchema = createInsertSchema(patients)
   .pick({
     name: true,
+    countryCode: true,
     phone: true,
     age: true,
     gender: true,
@@ -50,7 +52,8 @@ export const insertPatientSchema = createInsertSchema(patients)
   })
   .extend({
     name: z.string().min(2, "الاسم مطلوب ويجب أن يكون حرفين على الأقل").max(100),
-    phone: z.string().min(7, "رقم الهاتف قصير جداً").max(20, "رقم الهاتف طويل جداً"),
+    countryCode: z.string().default("+967"),
+    phone: z.string().min(6, "رقم الهاتف قصير جداً").max(15, "رقم الهاتف طويل جداً").regex(/^\d[\d\s\-]{4,14}$/, "أدخل الرقم المحلي فقط بدون رمز الدولة"),
     age: z.coerce.number().int().min(0, "العمر لا يمكن أن يكون سالباً").max(150, "العمر غير منطقي"),
     gender: z.enum(["male", "female"]),
   });

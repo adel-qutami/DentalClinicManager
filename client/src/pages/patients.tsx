@@ -21,9 +21,33 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+const COUNTRY_CODES = [
+  { code: "+967", flag: "🇾🇪", name: "اليمن" },
+  { code: "+966", flag: "🇸🇦", name: "السعودية" },
+  { code: "+971", flag: "🇦🇪", name: "الإمارات" },
+  { code: "+968", flag: "🇴🇲", name: "عُمان" },
+  { code: "+965", flag: "🇰🇼", name: "الكويت" },
+  { code: "+974", flag: "🇶🇦", name: "قطر" },
+  { code: "+973", flag: "🇧🇭", name: "البحرين" },
+  { code: "+962", flag: "🇯🇴", name: "الأردن" },
+  { code: "+961", flag: "🇱🇧", name: "لبنان" },
+  { code: "+963", flag: "🇸🇾", name: "سوريا" },
+  { code: "+964", flag: "🇮🇶", name: "العراق" },
+  { code: "+20",  flag: "🇪🇬", name: "مصر" },
+  { code: "+249", flag: "🇸🇩", name: "السودان" },
+  { code: "+212", flag: "🇲🇦", name: "المغرب" },
+  { code: "+213", flag: "🇩🇿", name: "الجزائر" },
+  { code: "+216", flag: "🇹🇳", name: "تونس" },
+  { code: "+1",   flag: "🇺🇸", name: "الولايات المتحدة" },
+  { code: "+44",  flag: "🇬🇧", name: "المملكة المتحدة" },
+  { code: "+49",  flag: "🇩🇪", name: "ألمانيا" },
+  { code: "+33",  flag: "🇫🇷", name: "فرنسا" },
+];
+
 const patientSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
-  phone: z.string().min(7, "رقم الهاتف قصير جداً").max(20, "رقم الهاتف طويل جداً").regex(/^[\+\d][\d\s\-]{5,18}$/, "رقم الهاتف غير صحيح"),
+  countryCode: z.string().default("+967"),
+  phone: z.string().min(6, "رقم الهاتف قصير جداً").max(15, "رقم الهاتف طويل جداً").regex(/^\d[\d\s\-]{4,14}$/, "أدخل الأرقام فقط بدون رمز الدولة"),
   age: z.string().transform((val) => parseInt(val, 10)),
   gender: z.enum(["male", "female"]),
   notes: z.string().optional(),
@@ -60,7 +84,7 @@ export default function Patients() {
 
   const form = useForm<z.infer<typeof patientSchema>>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { name: "", phone: "", age: "" as any, gender: "male", notes: "" },
+    defaultValues: { name: "", countryCode: "+967", phone: "", age: "" as any, gender: "male", notes: "" },
   });
 
   function handleSort(key: SortKey) {
@@ -102,7 +126,7 @@ export default function Patients() {
 
   function openAddForm() {
     setEditingPatient(null);
-    form.reset({ name: "", phone: "", age: "" as any, gender: "male", notes: "" });
+    form.reset({ name: "", countryCode: "+967", phone: "", age: "" as any, gender: "male", notes: "" });
     setShowForm(true);
   }
 
@@ -110,6 +134,7 @@ export default function Patients() {
     setEditingPatient(patient);
     form.reset({
       name: patient.name,
+      countryCode: patient.countryCode || "+967",
       phone: patient.phone,
       age: String(patient.age) as any,
       gender: patient.gender as "male" | "female",
@@ -290,7 +315,7 @@ export default function Patients() {
                     <TableCell>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Phone className="w-3.5 h-3.5" />
-                        <span dir="ltr">{patient.phone}</span>
+                        <span dir="ltr">{patient.countryCode || "+967"} {patient.phone}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -354,7 +379,7 @@ export default function Patients() {
                         <p className="font-semibold text-sm truncate">{patient.name}</p>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                           <Phone className="w-3 h-3" />
-                          <span dir="ltr">{patient.phone}</span>
+                          <span dir="ltr">{patient.countryCode || "+967"} {patient.phone}</span>
                         </div>
                       </div>
                     </div>
@@ -429,30 +454,58 @@ export default function Patients() {
                 )}
               />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>رقم الهاتف</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-input bg-muted text-muted-foreground text-sm font-medium select-none">
-                            🇾🇪 +967
-                          </span>
+                <FormItem className="sm:col-span-1">
+                  <FormLabel>رقم الهاتف</FormLabel>
+                  <div className="flex gap-0">
+                    <FormField
+                      control={form.control}
+                      name="countryCode"
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="w-[110px] rounded-l-none border-l-0 shrink-0" data-testid="select-country-code" dir="ltr">
+                            <SelectValue>
+                              {(() => {
+                                const c = COUNTRY_CODES.find(x => x.code === field.value);
+                                return c ? `${c.flag} ${c.code}` : field.value;
+                              })()}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COUNTRY_CODES.map(c => (
+                              <SelectItem key={c.code} value={c.code} dir="rtl">
+                                <span className="flex items-center gap-2">
+                                  <span>{c.flag}</span>
+                                  <span>{c.name}</span>
+                                  <span className="text-muted-foreground text-xs" dir="ltr">{c.code}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormControl>
                           <Input
                             placeholder="7xxxxxxxx"
                             {...field}
                             data-testid="input-patient-phone"
-                            className="rounded-r-none"
+                            className="rounded-r-none flex-1"
                             dir="ltr"
                           />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={() => <FormMessage />}
+                  />
+                </FormItem>
                 <FormField
                   control={form.control}
                   name="age"

@@ -204,7 +204,7 @@ export default function PatientProfile({ id }: { id: string }) {
               <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
-                  <span dir="ltr">{patient.phone}</span>
+                  <span dir="ltr">{patient.countryCode || "+967"} {patient.phone}</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5" />

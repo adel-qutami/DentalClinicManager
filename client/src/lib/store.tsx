@@ -262,6 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({
           name: patient.name,
+          countryCode: patient.countryCode || "+967",
           phone: patient.phone,
           age: Number(patient.age),
           gender: patient.gender,
