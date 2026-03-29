@@ -875,7 +875,7 @@ export async function registerRoutes(
         return JSON.parse(fs.readFileSync(CLINIC_SETTINGS_PATH, "utf-8"));
       }
     } catch (_) {}
-    return { clinicName: "عيادة الأسنان", logoUrl: "" };
+    return { clinicName: "عيادة الأسنان", logoBase64: "" };
   }
 
   app.get("/api/admin/clinic-settings", requireAuth, (req, res) => {
@@ -947,6 +947,71 @@ export async function registerRoutes(
       }
       const { data } = backup;
 
+      const { randomUUID: genUUID } = await import("crypto");
+
+      await db.transaction(async (tx) => {
+        await tx.execute(drizzleSql`SET session_replication_role = 'replica'`);
+
+        await tx.execute(drizzleSql`TRUNCATE TABLE audit_logs CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE public_bookings CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE visit_items CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE payments CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE expenses CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE expense_categories CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE visits CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE appointments CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE services CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE patients CASCADE`);
+
+        if (data.expenseCategories?.length) {
+          for (const cat of data.expenseCategories) {
+            await tx.execute(drizzleSql`INSERT INTO expense_categories (id, name, type, created_at) VALUES (${cat.id}, ${cat.name}, ${cat.type}, ${cat.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.patients?.length) {
+          for (const p of data.patients) {
+            await tx.execute(drizzleSql`INSERT INTO patients (id, name, country_code, phone, age, gender, notes, created_at, deleted_at) VALUES (${p.id}, ${p.name}, ${p.countryCode ?? '+967'}, ${p.phone}, ${p.age}, ${p.gender}, ${p.notes ?? null}, ${p.createdAt ?? new Date().toISOString()}, ${p.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.services?.length) {
+          for (const s of data.services) {
+            await tx.execute(drizzleSql`INSERT INTO services (id, name, default_price, requires_teeth_selection) VALUES (${s.id}, ${s.name}, ${String(s.defaultPrice)}, ${s.requiresTeethSelection ?? false}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.appointments?.length) {
+          for (const a of data.appointments) {
+            await tx.execute(drizzleSql`INSERT INTO appointments (id, patient_id, doctor_id, doctor_name, date, period, status, notes, created_at, deleted_at) VALUES (${a.id}, ${a.patientId}, ${a.doctorId ?? null}, ${a.doctorName ?? null}, ${a.date}, ${a.period}, ${a.status}, ${a.notes ?? null}, ${a.createdAt ?? new Date().toISOString()}, ${a.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.visits?.length) {
+          for (const v of data.visits) {
+            await tx.execute(drizzleSql`INSERT INTO visits (id, patient_id, date, doctor_id, doctor_name, diagnosis, total_amount, notes, created_at, deleted_at) VALUES (${v.id}, ${v.patientId}, ${v.date}, ${v.doctorId ?? null}, ${v.doctorName ?? null}, ${v.diagnosis ?? null}, ${String(v.totalAmount)}, ${v.notes ?? null}, ${v.createdAt ?? new Date().toISOString()}, ${v.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
+            if (v.items?.length) {
+              for (const item of v.items) {
+                await tx.execute(drizzleSql`INSERT INTO visit_items (id, visit_id, service_id, price, quantity, tooth_numbers, jaw_type) VALUES (${item.id ?? genUUID()}, ${v.id}, ${item.serviceId}, ${String(item.price)}, ${item.quantity ?? 1}, ${item.toothNumbers ?? null}, ${item.jawType ?? null}) ON CONFLICT (id) DO NOTHING`);
+              }
+            }
+          }
+        }
+        if (data.payments?.length) {
+          for (const pay of data.payments) {
+            await tx.execute(drizzleSql`INSERT INTO payments (id, visit_id, date, amount, type, note, created_at, deleted_at) VALUES (${pay.id}, ${pay.visitId}, ${pay.date}, ${String(pay.amount)}, ${pay.type ?? 'manual'}, ${pay.note ?? null}, ${pay.createdAt ?? new Date().toISOString()}, ${pay.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.expenses?.length) {
+          for (const e of data.expenses) {
+            await tx.execute(drizzleSql`INSERT INTO expenses (id, title, amount, date, category, type, notes, created_at, deleted_at) VALUES (${e.id}, ${e.title}, ${String(e.amount)}, ${e.date}, ${e.category}, ${e.type}, ${e.notes ?? null}, ${e.createdAt ?? new Date().toISOString()}, ${e.deletedAt ?? null}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+        if (data.publicBookings?.length) {
+          for (const b of data.publicBookings) {
+            await tx.execute(drizzleSql`INSERT INTO public_bookings (id, name, phone, service, appointment_date, appointment_time, status, notes, created_at) VALUES (${b.id}, ${b.name}, ${b.phone ?? null}, ${b.service}, ${b.appointmentDate}, ${b.appointmentTime}, ${b.status ?? 'pending'}, ${b.notes ?? null}, ${b.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+
+        await tx.execute(drizzleSql`SET session_replication_role = 'origin'`);
+      });
+
       if (data.clinicSettings) {
         try {
           fs.writeFileSync(CLINIC_SETTINGS_PATH, JSON.stringify(data.clinicSettings, null, 2), "utf-8");
@@ -955,7 +1020,7 @@ export async function registerRoutes(
 
       res.json({
         success: true,
-        message: "تم استيراد إعدادات العيادة بنجاح. لاستعادة البيانات الكاملة يرجى التواصل مع الدعم الفني.",
+        message: "تمت استعادة النسخة الاحتياطية بنجاح",
         exportedAt: backup.exportedAt,
         counts: {
           patients: data.patients?.length ?? 0,

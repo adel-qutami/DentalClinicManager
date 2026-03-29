@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import {
   Settings, Building2, Wrench, Shield, HardDrive, Save, Plus, Edit,
   Trash2, CircleDot, ArrowUpDown, ArrowUp, ArrowDown, Search, X,
   Download, Upload, AlertTriangle, CheckCircle2, Loader2, Key,
-  Sliders, DollarSign, Check,
+  Sliders, DollarSign, Check, Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/store";
@@ -44,7 +44,7 @@ const categorySchema = z.object({
 
 const clinicSchema = z.object({
   clinicName: z.string().min(1, "اسم العيادة مطلوب"),
-  logoUrl: z.string().optional(),
+  logoBase64: z.string().optional(),
 });
 
 type SortKey = "name" | "defaultPrice" | null;
@@ -637,15 +637,47 @@ function ClinicInfoTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: settings, isLoading } = useQuery<{ clinicName: string; logoUrl: string }>({
+  const { data: settings, isLoading } = useQuery<{ clinicName: string; logoBase64: string }>({
     queryKey: ["/api/admin/clinic-settings"],
   });
 
   const form = useForm<z.infer<typeof clinicSchema>>({
     resolver: zodResolver(clinicSchema),
-    values: { clinicName: settings?.clinicName ?? "عيادة الأسنان", logoUrl: settings?.logoUrl ?? "" },
+    values: { clinicName: settings?.clinicName ?? "عيادة الأسنان", logoBase64: settings?.logoBase64 ?? "" },
   });
+
+  useEffect(() => {
+    if (settings?.logoBase64) setLogoPreview(settings.logoBase64);
+  }, [settings]);
+
+  function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "ملف غير صالح", description: "يرجى اختيار صورة (PNG, JPG, SVG)", variant: "destructive" });
+      return;
+    }
+    if (file.size > 500 * 1024) {
+      toast({ title: "الصورة كبيرة جداً", description: "الحجم الأقصى 500 كيلوبايت", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target?.result as string;
+      setLogoPreview(b64);
+      form.setValue("logoBase64", b64);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeLogo() {
+    setLogoPreview("");
+    form.setValue("logoBase64", "");
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  }
 
   async function onSubmit(values: z.infer<typeof clinicSchema>) {
     setIsSaving(true);
@@ -671,7 +703,7 @@ function ClinicInfoTab() {
   return (
     <div className="max-w-lg space-y-6">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
           <FormField control={form.control} name="clinicName" render={({ field }) => (
             <FormItem>
               <FormLabel>اسم العيادة</FormLabel>
@@ -679,19 +711,32 @@ function ClinicInfoTab() {
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="logoUrl" render={({ field }) => (
-            <FormItem>
-              <FormLabel>رابط الشعار (URL)</FormLabel>
-              <FormControl><Input placeholder="https://example.com/logo.png" {...field} data-testid="input-logo-url" /></FormControl>
-              <p className="text-xs text-muted-foreground">أدخل رابط صورة الشعار إن وجد</p>
-              <FormMessage />
-            </FormItem>
-          )} />
-          {form.watch("logoUrl") && (
-            <div className="p-3 border rounded-lg bg-muted/20 inline-block">
-              <img src={form.watch("logoUrl")} alt="معاينة الشعار" className="h-16 object-contain" onError={(e) => (e.currentTarget.style.display = "none")} />
+
+          <div className="space-y-3">
+            <label className="text-sm font-medium">شعار العيادة</label>
+            <div className="flex items-start gap-4">
+              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex items-center justify-center overflow-hidden shrink-0">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="معاينة الشعار" className="w-full h-full object-contain p-1" />
+                ) : (
+                  <Stethoscope className="w-8 h-8 text-muted-foreground/40" />
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} data-testid="input-logo-file" />
+                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} className="gap-2" data-testid="button-upload-logo">
+                  <Upload className="w-4 h-4" /> رفع شعار
+                </Button>
+                {logoPreview && (
+                  <Button type="button" variant="ghost" size="sm" onClick={removeLogo} className="gap-2 text-destructive hover:text-destructive" data-testid="button-remove-logo">
+                    <X className="w-4 h-4" /> إزالة الشعار
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">PNG, JPG, SVG — الحد الأقصى 500 كيلوبايت</p>
+              </div>
             </div>
-          )}
+          </div>
+
           <Button type="submit" disabled={isSaving} className="gap-2" data-testid="button-save-clinic">
             {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />جاري الحفظ...</> : <><Save className="w-4 h-4" />حفظ البيانات</>}
           </Button>
@@ -757,7 +802,7 @@ function BackupTab() {
       const data = await res.json();
       if (res.ok) {
         setRestoreResult(data);
-        toast({ title: "تمت القراءة", description: data.message });
+        toast({ title: "تمت الاستعادة", description: data.message });
       } else {
         toast({ title: "فشل الاستيراد", description: data.message, variant: "destructive" });
       }
@@ -789,7 +834,7 @@ function BackupTab() {
           <CardTitle className="flex items-center gap-2 text-base"><Upload className="w-5 h-5 text-amber-600" />استيراد نسخة احتياطية</CardTitle>
           <CardDescription className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            استيراد ملف نسخة احتياطية للتحقق من محتواه. الاستيراد الكامل للبيانات يتطلب التواصل مع الدعم الفني.
+            تحذير: سيؤدي الاستيراد إلى حذف جميع البيانات الحالية واستبدالها ببيانات الملف المستورد. تأكد من تصدير نسخة احتياطية أولاً.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -802,7 +847,7 @@ function BackupTab() {
             <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-4 space-y-2">
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-semibold text-sm">
                 <CheckCircle2 className="w-4 h-4" />
-                تم قراءة ملف النسخة الاحتياطية
+                تمت استعادة النسخة الاحتياطية بنجاح
               </div>
               <p className="text-xs text-muted-foreground">تاريخ النسخة: {restoreResult.exportedAt ? new Date(restoreResult.exportedAt).toLocaleString("ar") : "-"}</p>
               <div className="grid grid-cols-2 gap-2 mt-2">
@@ -830,7 +875,8 @@ function BackupTab() {
             <AlertDialogTitle className="text-right flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" />تأكيد استيراد النسخة الاحتياطية</AlertDialogTitle>
             <AlertDialogDescription className="text-right">
               الملف المختار: <strong>{pendingFile?.name}</strong>
-              <br />سيتم قراءة محتوى الملف والتحقق من صحته. هل تريد المتابعة؟
+              <br /><br />
+              <span className="text-destructive font-medium">تحذير: سيتم حذف جميع البيانات الحالية (المرضى، الزيارات، المواعيد، المصروفات) واستبدالها ببيانات هذا الملف. هذا الإجراء لا يمكن التراجع عنه.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">

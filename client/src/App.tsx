@@ -82,7 +82,12 @@ function AdminRouter() {
           {() => <ProtectedRoute component={Visits} permission="visits_view" />}
         </Route>
         <Route path="/admin/services">
-          {() => <ProtectedRoute component={Services} permission="services_view" />}
+          {() => {
+            if (typeof window !== "undefined") {
+              window.location.replace("/admin/settings");
+            }
+            return null;
+          }}
         </Route>
         <Route path="/admin/finance">
           {() => <ProtectedRoute component={Finance} permission="finance_view" />}

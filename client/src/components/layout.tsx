@@ -18,6 +18,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useStore, getRoleLabel } from "@/lib/store";
@@ -92,6 +93,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   });
   const { user, logout, can } = useStore();
 
+  const { data: clinicSettings } = useQuery<{ clinicName: string; logoBase64: string }>({
+    queryKey: ["/api/admin/clinic-settings"],
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const clinicName = clinicSettings?.clinicName || "عيادة الأسنان";
+  const clinicLogo = clinicSettings?.logoBase64 || "";
+
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
@@ -108,10 +118,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background font-sans flex flex-col md:flex-row" dir="rtl">
       <div className="md:hidden sticky top-0 z-30 p-3 border-b bg-card/95 backdrop-blur-sm flex items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Stethoscope className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary overflow-hidden">
+            {clinicLogo ? (
+              <img src={clinicLogo} alt="logo" className="w-full h-full object-contain" />
+            ) : (
+              <Stethoscope className="w-5 h-5" />
+            )}
           </div>
-          <h1 className="text-lg font-bold text-primary">عيادة الأسنان</h1>
+          <h1 className="text-lg font-bold text-primary">{clinicName}</h1>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)} data-testid="button-toggle-sidebar">
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -135,12 +149,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           "p-4 border-b bg-gradient-to-bl from-primary/5 to-transparent flex items-center gap-3",
           collapsed && "md:justify-center md:p-3"
         )}>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm shrink-0">
-            <Stethoscope className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm shrink-0 overflow-hidden">
+            {clinicLogo ? (
+              <img src={clinicLogo} alt="logo" className="w-full h-full object-contain" />
+            ) : (
+              <Stethoscope className="w-5 h-5" />
+            )}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-base leading-tight truncate">عيادة الأسنان</h1>
+              <h1 className="font-bold text-base leading-tight truncate" data-testid="text-clinic-name">{clinicName}</h1>
               <p className="text-[11px] text-muted-foreground mt-0.5">نظام الإدارة المتكامل</p>
             </div>
           )}
