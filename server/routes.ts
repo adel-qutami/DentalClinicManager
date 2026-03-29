@@ -916,7 +916,7 @@ export async function registerRoutes(
         exportedAt: new Date().toISOString(),
         version: 1,
         data: {
-          users: allUsers.map(({ password, ...u }) => u),
+          users: allUsers,
           patients: allPatients,
           services: allServices,
           appointments: allAppointments,
@@ -962,7 +962,13 @@ export async function registerRoutes(
         await tx.execute(drizzleSql`TRUNCATE TABLE appointments CASCADE`);
         await tx.execute(drizzleSql`TRUNCATE TABLE services CASCADE`);
         await tx.execute(drizzleSql`TRUNCATE TABLE patients CASCADE`);
+        await tx.execute(drizzleSql`TRUNCATE TABLE users CASCADE`);
 
+        if (data.users?.length) {
+          for (const u of data.users) {
+            await tx.execute(drizzleSql`INSERT INTO users (id, username, password, role, custom_permissions) VALUES (${u.id}, ${u.username}, ${u.password}, ${u.role}, ${u.customPermissions ? JSON.stringify(u.customPermissions) : null}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
         if (data.expenseCategories?.length) {
           for (const cat of data.expenseCategories) {
             await tx.execute(drizzleSql`INSERT INTO expense_categories (id, name, type, created_at) VALUES (${cat.id}, ${cat.name}, ${cat.type}, ${cat.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
@@ -1008,6 +1014,11 @@ export async function registerRoutes(
             await tx.execute(drizzleSql`INSERT INTO public_bookings (id, name, phone, service, appointment_date, appointment_time, status, notes, created_at) VALUES (${b.id}, ${b.name}, ${b.phone ?? null}, ${b.service}, ${b.appointmentDate}, ${b.appointmentTime}, ${b.status ?? 'pending'}, ${b.notes ?? null}, ${b.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
           }
         }
+        if (data.auditLogs?.length) {
+          for (const log of data.auditLogs) {
+            await tx.execute(drizzleSql`INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details, created_at) VALUES (${log.id}, ${log.userId ?? null}, ${log.action}, ${log.entity}, ${log.entityId ?? null}, ${log.details ? JSON.stringify(log.details) : null}, ${log.createdAt ?? new Date().toISOString()}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
 
         await tx.execute(drizzleSql`SET session_replication_role = 'origin'`);
       });
@@ -1023,6 +1034,7 @@ export async function registerRoutes(
         message: "تمت استعادة النسخة الاحتياطية بنجاح",
         exportedAt: backup.exportedAt,
         counts: {
+          users: data.users?.length ?? 0,
           patients: data.patients?.length ?? 0,
           services: data.services?.length ?? 0,
           appointments: data.appointments?.length ?? 0,

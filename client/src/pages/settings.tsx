@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/store";
-import type { Role } from "@/lib/store";
+import type { Role, Service } from "@/lib/store";
 
 const serviceSchema = z.object({
   name: z.string().min(2, "اسم الخدمة مطلوب"),
@@ -64,7 +64,7 @@ function ServicesTab() {
 
   const form = useForm<z.infer<typeof serviceSchema>>({
     resolver: zodResolver(serviceSchema),
-    defaultValues: { name: "", defaultPrice: "" as any, requiresTeethSelection: false },
+    defaultValues: { name: "", defaultPrice: 0, requiresTeethSelection: false },
   });
 
   function handleSort(key: SortKey) {
@@ -84,8 +84,8 @@ function ServicesTab() {
   );
   const sorted = [...filtered].sort((a, b) => {
     if (!sortKey) return 0;
-    let va: any = sortKey === "name" ? a.name : Number(a.defaultPrice);
-    let vb: any = sortKey === "name" ? b.name : Number(b.defaultPrice);
+    const va: string | number = sortKey === "name" ? a.name : Number(a.defaultPrice);
+    const vb: string | number = sortKey === "name" ? b.name : Number(b.defaultPrice);
     if (va < vb) return sortDir === "asc" ? -1 : 1;
     if (va > vb) return sortDir === "asc" ? 1 : -1;
     return 0;
@@ -107,7 +107,7 @@ function ServicesTab() {
     } finally { setIsSubmitting(false); }
   }
 
-  function handleEdit(service: any) {
+  function handleEdit(service: Service) {
     setEditingId(service.id);
     form.reset({ name: service.name, defaultPrice: Number(service.defaultPrice), requiresTeethSelection: service.requiresTeethSelection ?? false });
     setShowForm(true);
@@ -128,7 +128,7 @@ function ServicesTab() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-sm text-muted-foreground">{services?.length ?? 0} خدمة مسجلة</p>
         {canManage && (
-          <Button size="sm" className="gap-2" onClick={() => { setEditingId(null); form.reset({ name: "", defaultPrice: "" as any, requiresTeethSelection: false }); setShowForm(true); }} data-testid="button-add-service">
+          <Button size="sm" className="gap-2" onClick={() => { setEditingId(null); form.reset({ name: "", defaultPrice: 0, requiresTeethSelection: false }); setShowForm(true); }} data-testid="button-add-service">
             <Plus className="w-4 h-4" /> خدمة جديدة
           </Button>
         )}
@@ -290,7 +290,7 @@ function ExpenseCategoriesTab() {
                 {canManage && (
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(cat.id); form.reset({ name: cat.name, type: cat.type as any }); setShowForm(true); }} data-testid={`button-edit-category-${cat.id}`}><Edit className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(cat.id); form.reset({ name: cat.name, type: cat.type as "operational" | "fixed" }); setShowForm(true); }} data-testid={`button-edit-category-${cat.id}`}><Edit className="w-3.5 h-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(cat.id)} data-testid={`button-delete-category-${cat.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                     </div>
                   </TableCell>
@@ -382,15 +382,16 @@ function UsersTab() {
   const [useCustomPerms, setUseCustomPerms] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
 
-  const addUserForm = useForm({
-    defaultValues: { username: "", password: "", role: "receptionist" as Role },
+  type AddUserValues = { username: string; password: string; role: Role };
+  const addUserForm = useForm<AddUserValues>({
+    defaultValues: { username: "", password: "", role: "receptionist" },
   });
 
   const { data: users = [], isLoading } = useQuery<UserRecord[]>({
     queryKey: ["/api/users"],
   });
 
-  async function handleAddUser(values: any) {
+  async function handleAddUser(values: AddUserValues) {
     setIsWorking(true);
     try {
       const res = await fetch("/api/users", {
@@ -746,13 +747,26 @@ function ClinicInfoTab() {
   );
 }
 
+interface RestoreResult {
+  success: boolean;
+  message: string;
+  exportedAt?: string;
+  counts?: Record<string, number>;
+}
+
+interface BackupSummary {
+  exportedAt?: string;
+  counts: Record<string, number>;
+}
+
 function BackupTab() {
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [restoreResult, setRestoreResult] = useState<any>(null);
+  const [pendingSummary, setPendingSummary] = useState<BackupSummary | null>(null);
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleExport() {
@@ -782,14 +796,44 @@ function BackupTab() {
       toast({ title: "ملف غير صالح", description: "يرجى اختيار ملف JSON", variant: "destructive" });
       return;
     }
-    setPendingFile(file);
-    setShowRestoreConfirm(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (!parsed?.version || !parsed?.data) {
+          toast({ title: "ملف غير صالح", description: "الملف لا يحتوي على نسخة احتياطية صحيحة", variant: "destructive" });
+          if (fileRef.current) fileRef.current.value = "";
+          return;
+        }
+        const d = parsed.data;
+        const summary: BackupSummary = {
+          exportedAt: parsed.exportedAt,
+          counts: {
+            users: d.users?.length ?? 0,
+            patients: d.patients?.length ?? 0,
+            services: d.services?.length ?? 0,
+            appointments: d.appointments?.length ?? 0,
+            visits: d.visits?.length ?? 0,
+            expenses: d.expenses?.length ?? 0,
+            payments: d.payments?.length ?? 0,
+          },
+        };
+        setPendingFile(file);
+        setPendingSummary(summary);
+        setShowRestoreConfirm(true);
+      } catch {
+        toast({ title: "ملف غير صالح", description: "تعذّر قراءة الملف", variant: "destructive" });
+        if (fileRef.current) fileRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
   }
 
   async function confirmRestore() {
     if (!pendingFile) return;
     setIsImporting(true);
     setShowRestoreConfirm(false);
+    setPendingSummary(null);
     try {
       const text = await pendingFile.text();
       const json = JSON.parse(text);
@@ -799,14 +843,14 @@ function BackupTab() {
         credentials: "include",
         body: JSON.stringify(json),
       });
-      const data = await res.json();
+      const data: RestoreResult = await res.json();
       if (res.ok) {
         setRestoreResult(data);
         toast({ title: "تمت الاستعادة", description: data.message });
       } else {
         toast({ title: "فشل الاستيراد", description: data.message, variant: "destructive" });
       }
-    } catch (err: any) {
+    } catch {
       toast({ title: "خطأ", description: "الملف غير صالح أو تالف", variant: "destructive" });
     } finally {
       setIsImporting(false);
@@ -854,11 +898,13 @@ function BackupTab() {
                 {restoreResult.counts && Object.entries(restoreResult.counts).map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between bg-white dark:bg-black/20 rounded-md px-2 py-1 text-xs border">
                     <span className="text-muted-foreground">{
+                      k === "users" ? "المستخدمون" :
                       k === "patients" ? "المرضى" :
                       k === "services" ? "الخدمات" :
                       k === "appointments" ? "المواعيد" :
                       k === "visits" ? "الزيارات" :
-                      k === "expenses" ? "المصروفات" : k
+                      k === "expenses" ? "المصروفات" :
+                      k === "payments" ? "المدفوعات" : k
                     }</span>
                     <span className="font-bold">{String(v)}</span>
                   </div>
@@ -869,18 +915,42 @@ function BackupTab() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={showRestoreConfirm} onOpenChange={(open) => { if (!open) { setShowRestoreConfirm(false); setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; } }}>
+      <AlertDialog open={showRestoreConfirm} onOpenChange={(open) => { if (!open) { setShowRestoreConfirm(false); setPendingFile(null); setPendingSummary(null); if (fileRef.current) fileRef.current.value = ""; } }}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-right flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" />تأكيد استيراد النسخة الاحتياطية</AlertDialogTitle>
-            <AlertDialogDescription className="text-right">
-              الملف المختار: <strong>{pendingFile?.name}</strong>
-              <br /><br />
-              <span className="text-destructive font-medium">تحذير: سيتم حذف جميع البيانات الحالية (المرضى، الزيارات، المواعيد، المصروفات) واستبدالها ببيانات هذا الملف. هذا الإجراء لا يمكن التراجع عنه.</span>
+            <AlertDialogDescription asChild>
+              <div className="text-right space-y-3">
+                <p>الملف: <strong>{pendingFile?.name}</strong></p>
+                {pendingSummary && (
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                    {pendingSummary.exportedAt && (
+                      <p className="text-xs text-muted-foreground">تاريخ النسخة: {new Date(pendingSummary.exportedAt).toLocaleString("ar")}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-1">
+                      {Object.entries(pendingSummary.counts).map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded px-2 py-0.5 text-xs bg-background border">
+                          <span className="text-muted-foreground">{
+                            k === "users" ? "المستخدمون" :
+                            k === "patients" ? "المرضى" :
+                            k === "services" ? "الخدمات" :
+                            k === "appointments" ? "المواعيد" :
+                            k === "visits" ? "الزيارات" :
+                            k === "expenses" ? "المصروفات" :
+                            k === "payments" ? "المدفوعات" : k
+                          }</span>
+                          <span className="font-bold">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-destructive font-medium text-sm">تحذير: سيتم حذف جميع البيانات الحالية واستبدالها ببيانات هذا الملف. هذا الإجراء لا يمكن التراجع عنه.</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction onClick={confirmRestore} className="bg-amber-600 text-white hover:bg-amber-700" data-testid="button-confirm-restore">متابعة</AlertDialogAction>
+            <AlertDialogAction onClick={confirmRestore} className="bg-amber-600 text-white hover:bg-amber-700" data-testid="button-confirm-restore">تأكيد الاستعادة</AlertDialogAction>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
