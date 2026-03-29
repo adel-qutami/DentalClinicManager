@@ -119,11 +119,11 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => navigate('/patients')} data-testid="button-quick-patient">
+          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => navigate('/patients?new=1')} data-testid="button-quick-patient">
             <UserPlus className="w-3.5 h-3.5" />
             مريض جديد
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => navigate('/appointments')} data-testid="button-quick-appointment">
+          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => navigate('/appointments?new=1')} data-testid="button-quick-appointment">
             <CalendarPlus className="w-3.5 h-3.5" />
             موعد جديد
           </Button>

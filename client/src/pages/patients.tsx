@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useStore, Patient } from "@/lib/store";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,15 @@ export default function Patients() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const submittingRef = useRef(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "1") {
+      setEditingPatient(null);
+      setShowForm(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   const form = useForm<z.infer<typeof patientSchema>>({
     resolver: zodResolver(patientSchema),
