@@ -35,6 +35,17 @@ function PageLoader() {
   );
 }
 
+function ServicesRedirect() {
+  const [, navigate] = useLocation();
+  const { can } = useStore();
+  if (can("users_manage")) {
+    navigate("/admin/settings", { replace: true });
+  } else {
+    navigate("/admin", { replace: true });
+  }
+  return null;
+}
+
 function ProtectedRoute({ component: Component, permission }: { component: React.ComponentType; permission?: string }) {
   const { can } = useStore();
   if (permission && !can(permission as any)) {
@@ -82,7 +93,7 @@ function AdminRouter() {
           {() => <ProtectedRoute component={Visits} permission="visits_view" />}
         </Route>
         <Route path="/admin/services">
-          {() => <ProtectedRoute component={Services} permission="services_view" />}
+          {() => <ProtectedRoute component={ServicesRedirect} permission="services_view" />}
         </Route>
         <Route path="/admin/finance">
           {() => <ProtectedRoute component={Finance} permission="finance_view" />}

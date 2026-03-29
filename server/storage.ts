@@ -92,6 +92,12 @@ export interface IStorage {
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(entityName?: string, entityId?: string): Promise<AuditLog[]>;
 
+  getAllPatientsForBackup(): Promise<Patient[]>;
+  getAllAppointmentsForBackup(): Promise<Appointment[]>;
+  getAllVisitsForBackup(): Promise<(Visit & { items: VisitItem[] })[]>;
+  getAllPaymentsForBackup(): Promise<Payment[]>;
+  getAllExpensesForBackup(): Promise<Expense[]>;
+
   createPublicBooking(booking: InsertPublicBooking): Promise<PublicBooking>;
   getAllPublicBookings(): Promise<PublicBooking[]>;
   updatePublicBookingStatus(id: string, status: string): Promise<PublicBooking>;
@@ -601,6 +607,40 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(auditLogs.createdAt));
     }
     return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getAllPatientsForBackup(): Promise<Patient[]> {
+    return await db.select().from(patients).orderBy(desc(patients.createdAt));
+  }
+
+  async getAllAppointmentsForBackup(): Promise<Appointment[]> {
+    return await db.select().from(appointments).orderBy(desc(appointments.createdAt));
+  }
+
+  async getAllVisitsForBackup(): Promise<(Visit & { items: VisitItem[] })[]> {
+    const allVisits = await db.select().from(visits).orderBy(desc(visits.createdAt));
+    const allItems = await db.select().from(visitItems);
+    const paidSums = await db
+      .select({
+        visitId: payments.visitId,
+        total: sql<string>`CAST(COALESCE(SUM(${payments.amount}), 0) AS TEXT)`,
+      })
+      .from(payments)
+      .groupBy(payments.visitId);
+    const paidMap = new Map(paidSums.map(p => [p.visitId, p.total]));
+    return allVisits.map(v => ({
+      ...v,
+      paidAmount: paidMap.get(v.id) ?? '0',
+      items: allItems.filter(i => i.visitId === v.id),
+    }));
+  }
+
+  async getAllPaymentsForBackup(): Promise<Payment[]> {
+    return await db.select().from(payments).orderBy(desc(payments.createdAt));
+  }
+
+  async getAllExpensesForBackup(): Promise<Expense[]> {
+    return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
   }
 
   async getFinancialReport(filters: {
