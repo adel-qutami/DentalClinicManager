@@ -4,7 +4,7 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { autoSeedIfEmpty } from "./auto-seed";
+import { autoSeedIfEmpty, ensureDefaultUsers } from "./auto-seed";
 import { storage } from "./storage";
 
 declare module "express-session" {
@@ -207,6 +207,7 @@ async function requireAdminSession(req: Request, res: Response, next: NextFuncti
     },
     async () => {
       log(`serving on port ${port}`);
+      await ensureDefaultUsers();
       await autoSeedIfEmpty();
     },
   );

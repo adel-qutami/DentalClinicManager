@@ -7,10 +7,35 @@ import {
   visitItems,
   payments,
   expenses,
+  users,
 } from "@shared/schema";
 import { format, subDays } from "date-fns";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
+
+async function hashPasswordBcrypt(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function ensureDefaultUsers() {
+  try {
+    const existingUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
+    const userCount = Number(existingUsers[0]?.count ?? 0);
+    if (userCount > 0) return;
+
+    console.log("[AutoSeed] No users found, creating default accounts...");
+    await db.insert(users).values([
+      { username: "admin", password: await hashPasswordBcrypt("admin123"), role: "manager" },
+      { username: "dr_sami", password: await hashPasswordBcrypt("sami123"), role: "dentist" },
+      { username: "dr_noura", password: await hashPasswordBcrypt("noura123"), role: "dentist" },
+      { username: "reception", password: await hashPasswordBcrypt("reception123"), role: "receptionist" },
+    ]);
+    console.log("[AutoSeed] ✓ Default users created (admin/admin123, reception/reception123)");
+  } catch (err) {
+    console.error("[AutoSeed] Failed to create default users:", err);
+  }
+}
 
 export async function autoSeedIfEmpty() {
   try {
