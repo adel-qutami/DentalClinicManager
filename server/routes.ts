@@ -1026,7 +1026,11 @@ export async function registerRoutes(
           services: data.services?.length ?? 0,
           appointments: data.appointments?.length ?? 0,
           visits: data.visits?.length ?? 0,
+          payments: data.payments?.length ?? 0,
           expenses: data.expenses?.length ?? 0,
+          expenseCategories: data.expenseCategories?.length ?? 0,
+          publicBookings: data.publicBookings?.length ?? 0,
+          auditLogs: data.auditLogs?.length ?? 0,
         },
       });
     } catch (error: any) {

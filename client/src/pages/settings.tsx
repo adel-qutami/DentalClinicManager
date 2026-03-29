@@ -951,7 +951,10 @@ function BackupTab() {
                       k === "appointments" ? "المواعيد" :
                       k === "visits" ? "الزيارات" :
                       k === "expenses" ? "المصروفات" :
-                      k === "payments" ? "المدفوعات" : k
+                      k === "payments" ? "المدفوعات" :
+                      k === "expenseCategories" ? "تصنيفات المصروفات" :
+                      k === "publicBookings" ? "الحجوزات" :
+                      k === "auditLogs" ? "سجل التدقيق" : k
                     }</span>
                     <span className="font-bold">{String(v)}</span>
                   </div>

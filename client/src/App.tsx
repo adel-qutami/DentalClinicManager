@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -38,11 +38,13 @@ function PageLoader() {
 function ServicesRedirect() {
   const [, navigate] = useLocation();
   const { can } = useStore();
-  if (can("users_manage")) {
-    navigate("/admin/settings", { replace: true });
-  } else {
-    navigate("/admin", { replace: true });
-  }
+  useEffect(() => {
+    if (can("users_manage")) {
+      navigate("/admin/settings", { replace: true });
+    } else {
+      navigate("/admin", { replace: true });
+    }
+  }, []);
   return null;
 }
 
