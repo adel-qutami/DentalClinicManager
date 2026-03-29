@@ -11,6 +11,11 @@ import {
   XCircle, Eye, Edit, DollarSign, FileText, Settings, Lock,
   AlertTriangle, RotateCcw, Save, Sliders,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@shared/permissions";
@@ -327,58 +332,11 @@ export default function Users() {
             {users.length} مستخدم مسجل • التحكم الكامل في الأدوار والصلاحيات
           </p>
         </div>
-        {!showForm && (
-          <Button className="gap-2" onClick={() => setShowForm(true)} data-testid="button-add-user">
-            <Plus className="w-4 h-4" />
-            مستخدم جديد
-          </Button>
-        )}
+        <Button className="gap-2" onClick={() => setShowForm(true)} data-testid="button-add-user">
+          <Plus className="w-4 h-4" />
+          مستخدم جديد
+        </Button>
       </div>
-
-      {showForm && (
-        <Card className="border-primary/30 shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div>
-              <CardTitle className="text-lg">إضافة مستخدم جديد</CardTitle>
-              <CardDescription>أنشئ حساباً جديداً وحدد دوره في النظام</CardDescription>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }} data-testid="button-close-form">
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">اسم المستخدم</label>
-                  <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="أدخل اسم المستخدم" required minLength={3} data-testid="input-new-username" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">كلمة المرور</label>
-                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="4 أحرف على الأقل" required minLength={4} data-testid="input-new-password" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">الدور</label>
-                  <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
-                    <SelectTrigger data-testid="select-new-role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manager">مدير العيادة</SelectItem>
-                      <SelectItem value="dentist">طبيب أسنان</SelectItem>
-                      <SelectItem value="receptionist">موظف استقبال</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" data-testid="button-save-user">إنشاء المستخدم</Button>
-                <Button type="button" variant="outline" onClick={() => { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }} data-testid="button-cancel-user">إلغاء</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex gap-1 border-b">
         <button
@@ -405,51 +363,6 @@ export default function Users() {
 
       {activeTab === "users" && (
         <div className="space-y-3">
-          {deleteId && (
-            <Card className="border-destructive/40 bg-destructive/5">
-              <CardContent className="flex items-center justify-between gap-4 py-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-                  <div>
-                    <p className="font-medium text-destructive">تأكيد حذف المستخدم</p>
-                    <p className="text-sm text-muted-foreground">لا يمكن التراجع عن هذه العملية</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(deleteId)} data-testid="button-confirm-delete">تأكيد الحذف</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDeleteId(null)} data-testid="button-cancel-delete">إلغاء</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {resetPasswordId && (
-            <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
-              <CardContent className="flex items-center justify-between gap-4 py-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <Key className="w-5 h-5 text-orange-600 shrink-0" />
-                  <div>
-                    <p className="font-medium">إعادة تعيين كلمة المرور</p>
-                    <p className="text-sm text-muted-foreground">
-                      للمستخدم: <strong>{users.find(u => u.id === resetPasswordId)?.username}</strong>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    type="password"
-                    placeholder="كلمة المرور الجديدة"
-                    value={newResetPassword}
-                    onChange={(e) => setNewResetPassword(e.target.value)}
-                    className="w-44"
-                    data-testid="input-reset-password"
-                  />
-                  <Button size="sm" onClick={() => handleResetPassword(resetPasswordId)} data-testid="button-confirm-reset">حفظ</Button>
-                  <Button variant="outline" size="sm" onClick={() => { setResetPasswordId(null); setNewResetPassword(""); }} data-testid="button-cancel-reset">إلغاء</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {users.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -726,6 +639,102 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      {/* Dialog: إضافة مستخدم جديد */}
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }
+      }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">إضافة مستخدم جديد</DialogTitle>
+            <DialogDescription className="text-right">أنشئ حساباً جديداً وحدد دوره في النظام</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUser} className="space-y-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">اسم المستخدم</label>
+                <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="أدخل اسم المستخدم" required minLength={3} data-testid="input-new-username" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">كلمة المرور</label>
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="4 أحرف على الأقل" required minLength={4} data-testid="input-new-password" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">الدور</label>
+                <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
+                  <SelectTrigger data-testid="select-new-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manager">مدير العيادة</SelectItem>
+                    <SelectItem value="dentist">طبيب أسنان</SelectItem>
+                    <SelectItem value="receptionist">موظف استقبال</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" data-testid="button-save-user">إنشاء المستخدم</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowForm(false); setNewUsername(""); setNewPassword(""); setNewRole("receptionist"); }} data-testid="button-cancel-user">إلغاء</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog: تأكيد الحذف */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right">تأكيد حذف المستخدم</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من حذف المستخدم <strong>{users.find(u => u.id === deleteId)?.username}</strong>؟ لا يمكن التراجع عن هذه العملية.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && handleDeleteUser(deleteId)}
+              data-testid="button-confirm-delete"
+            >
+              تأكيد الحذف
+            </AlertDialogAction>
+            <AlertDialogCancel data-testid="button-cancel-delete">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog: إعادة تعيين كلمة المرور */}
+      <Dialog open={!!resetPasswordId} onOpenChange={(open) => {
+        if (!open) { setResetPasswordId(null); setNewResetPassword(""); }
+      }}>
+        <DialogContent className="sm:max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right flex items-center gap-2">
+              <Key className="w-4 h-4 text-orange-600" />
+              إعادة تعيين كلمة المرور
+            </DialogTitle>
+            <DialogDescription className="text-right">
+              للمستخدم: <strong>{users.find(u => u.id === resetPasswordId)?.username}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">كلمة المرور الجديدة</label>
+              <Input
+                type="password"
+                placeholder="أدخل كلمة المرور الجديدة"
+                value={newResetPassword}
+                onChange={(e) => setNewResetPassword(e.target.value)}
+                data-testid="input-reset-password"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={() => resetPasswordId && handleResetPassword(resetPasswordId)} data-testid="button-confirm-reset">حفظ</Button>
+              <Button variant="outline" onClick={() => { setResetPasswordId(null); setNewResetPassword(""); }} data-testid="button-cancel-reset">إلغاء</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

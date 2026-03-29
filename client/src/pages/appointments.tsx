@@ -12,6 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -207,118 +208,11 @@ export default function Appointments() {
             </SelectContent>
           </Select>
         </div>
-        {!showForm && (
-          <Button className="gap-2" onClick={openAddForm} data-testid="button-new-appointment">
-            <Plus className="w-4 h-4" />
-            موعد جديد
-          </Button>
-        )}
+        <Button className="gap-2" onClick={openAddForm} data-testid="button-new-appointment">
+          <Plus className="w-4 h-4" />
+          موعد جديد
+        </Button>
       </div>
-
-      {showForm && (
-        <Card className="border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-lg">{editingAppt ? "تعديل الموعد" : "حجز موعد جديد"}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={closeForm} data-testid="button-close-form">
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="patientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>المريض</FormLabel>
-                      <FormControl>
-                        <PatientSearch patients={patients || []} value={field.value} onSelect={field.onChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="doctorName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>الدكتور</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-doctor">
-                              <SelectValue placeholder="اختر الدكتور" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="د. سامي">د. سامي</SelectItem>
-                            <SelectItem value="د. نورة">د. نورة</SelectItem>
-                            <SelectItem value="د. أحمد">د. أحمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>التاريخ</FormLabel>
-                        <FormControl>
-                          <Input type="date" data-testid="input-date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="period"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>الفترة</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-period">
-                              <SelectValue placeholder="الفترة" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="morning">صباحاً</SelectItem>
-                            <SelectItem value="evening">مساءً</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ملاحظات</FormLabel>
-                      <FormControl>
-                        <Input placeholder="سبب الزيارة..." data-testid="input-notes" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex gap-3 pt-2">
-                  <Button type="submit" disabled={isSubmitting} data-testid="button-save-appointment">{isSubmitting ? "جاري الحفظ..." : editingAppt ? "حفظ التعديلات" : "حفظ الموعد"}</Button>
-                  <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-appointment">إلغاء</Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
 
       {filteredAppointments.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
@@ -440,6 +334,110 @@ export default function Appointments() {
           </div>
         </div>
       )}
+
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) closeForm(); }}>
+        <DialogContent className="sm:max-w-lg" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">
+              {editingAppt ? "تعديل الموعد" : "حجز موعد جديد"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
+              <FormField
+                control={form.control}
+                name="patientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>المريض</FormLabel>
+                    <FormControl>
+                      <PatientSearch patients={patients || []} value={field.value} onSelect={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="doctorName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الدكتور</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-doctor">
+                            <SelectValue placeholder="اختر الدكتور" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="د. سامي">د. سامي</SelectItem>
+                          <SelectItem value="د. نورة">د. نورة</SelectItem>
+                          <SelectItem value="د. أحمد">د. أحمد</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>التاريخ</FormLabel>
+                      <FormControl>
+                        <Input type="date" data-testid="input-date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="period"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الفترة</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-period">
+                            <SelectValue placeholder="الفترة" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="morning">صباحاً</SelectItem>
+                          <SelectItem value="evening">مساءً</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ملاحظات</FormLabel>
+                    <FormControl>
+                      <Input placeholder="سبب الزيارة..." data-testid="input-notes" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" disabled={isSubmitting} data-testid="button-save-appointment">
+                  {isSubmitting ? "جاري الحفظ..." : editingAppt ? "حفظ التعديلات" : "حفظ الموعد"}
+                </Button>
+                <Button type="button" variant="outline" onClick={closeForm} data-testid="button-cancel-appointment">إلغاء</Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent dir="rtl">
