@@ -867,5 +867,108 @@ export async function registerRoutes(
     }
   });
 
+  const CLINIC_SETTINGS_PATH = path.resolve(process.cwd(), "server/clinic-settings.json");
+
+  function readClinicSettings(): Record<string, any> {
+    try {
+      if (fs.existsSync(CLINIC_SETTINGS_PATH)) {
+        return JSON.parse(fs.readFileSync(CLINIC_SETTINGS_PATH, "utf-8"));
+      }
+    } catch (_) {}
+    return { clinicName: "عيادة الأسنان", logoUrl: "" };
+  }
+
+  app.get("/api/admin/clinic-settings", requireAuth, (req, res) => {
+    res.json(readClinicSettings());
+  });
+
+  app.patch("/api/admin/clinic-settings", requireAuth, requirePermission("users_manage"), (req, res) => {
+    try {
+      const current = readClinicSettings();
+      const updated = { ...current, ...req.body };
+      fs.writeFileSync(CLINIC_SETTINGS_PATH, JSON.stringify(updated, null, 2), "utf-8");
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "فشل حفظ إعدادات العيادة" });
+    }
+  });
+
+  app.get("/api/admin/backup", requireAuth, requirePermission("users_manage"), async (req, res) => {
+    try {
+      const [
+        allUsers, allPatients, allServices, allAppointments,
+        allVisits, allPayments, allExpenses, allExpenseCategories,
+        allPublicBookings, allAuditLogs,
+      ] = await Promise.all([
+        storage.getAllUsers(),
+        storage.getAllPatients(),
+        storage.getAllServices(),
+        storage.getAllAppointments(),
+        storage.getAllVisits(),
+        storage.getAllPayments(),
+        storage.getAllExpenses(),
+        storage.getAllExpenseCategories(),
+        storage.getAllPublicBookings(),
+        storage.getAuditLogs(),
+      ]);
+
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        version: 1,
+        data: {
+          users: allUsers.map(({ password, ...u }) => u),
+          patients: allPatients,
+          services: allServices,
+          appointments: allAppointments,
+          visits: allVisits,
+          payments: allPayments,
+          expenses: allExpenses,
+          expenseCategories: allExpenseCategories,
+          publicBookings: allPublicBookings,
+          auditLogs: allAuditLogs,
+          clinicSettings: readClinicSettings(),
+        },
+      };
+
+      const filename = `smilecare-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/json");
+      res.json(backup);
+    } catch (error: any) {
+      res.status(500).json({ message: "فشل تصدير النسخة الاحتياطية: " + (error?.message || "") });
+    }
+  });
+
+  app.post("/api/admin/restore", requireAuth, requirePermission("users_manage"), async (req, res) => {
+    try {
+      const backup = req.body;
+      if (!backup?.version || !backup?.data) {
+        return res.status(400).json({ message: "ملف النسخة الاحتياطية غير صالح" });
+      }
+      const { data } = backup;
+
+      if (data.clinicSettings) {
+        try {
+          fs.writeFileSync(CLINIC_SETTINGS_PATH, JSON.stringify(data.clinicSettings, null, 2), "utf-8");
+        } catch (_) {}
+      }
+
+      res.json({
+        success: true,
+        message: "تم استيراد إعدادات العيادة بنجاح. لاستعادة البيانات الكاملة يرجى التواصل مع الدعم الفني.",
+        exportedAt: backup.exportedAt,
+        counts: {
+          patients: data.patients?.length ?? 0,
+          services: data.services?.length ?? 0,
+          appointments: data.appointments?.length ?? 0,
+          visits: data.visits?.length ?? 0,
+          expenses: data.expenses?.length ?? 0,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "فشل استيراد النسخة الاحتياطية: " + (error?.message || "") });
+    }
+  });
+
   return httpServer;
 }

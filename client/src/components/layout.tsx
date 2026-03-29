@@ -7,7 +7,6 @@ import {
   Wallet, 
   Menu,
   X,
-  Wrench,
   Shield,
   LogOut,
   FileText,
@@ -16,6 +15,7 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Globe,
+  Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -30,20 +30,40 @@ interface NavItem {
   permission?: Permission;
 }
 
-const navItems: NavItem[] = [
-  { href: "/admin", label: "الرئيسية", icon: LayoutDashboard },
-  { href: "/admin/patients", label: "المرضى", icon: Users, permission: "patients_view" },
-  { href: "/admin/appointments", label: "المواعيد", icon: Calendar, permission: "appointments_view" },
-  { href: "/admin/visits", label: "الزيارات", icon: Stethoscope, permission: "visits_view" },
-  { href: "/admin/services", label: "الخدمات", icon: Wrench, permission: "services_view" },
-  { href: "/admin/finance", label: "المالية والتقارير", icon: Wallet, permission: "finance_view" },
-  { href: "/admin/bookings", label: "حجوزات الموقع", icon: Globe, permission: undefined },
-  { href: "/admin/audit-log", label: "سجل التدقيق", icon: FileText, permission: "audit_view" },
-  { href: "/admin/users", label: "إدارة المستخدمين", icon: Shield, permission: "users_manage" },
+interface NavSection {
+  label?: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    items: [
+      { href: "/admin", label: "الرئيسية", icon: LayoutDashboard },
+      { href: "/admin/patients", label: "المرضى", icon: Users, permission: "patients_view" },
+      { href: "/admin/appointments", label: "المواعيد", icon: Calendar, permission: "appointments_view" },
+      { href: "/admin/visits", label: "الزيارات", icon: Stethoscope, permission: "visits_view" },
+      { href: "/admin/finance", label: "المالية والتقارير", icon: Wallet, permission: "finance_view" },
+      { href: "/admin/bookings", label: "حجوزات الموقع", icon: Globe },
+    ],
+  },
+  {
+    label: "الإعدادات",
+    items: [
+      { href: "/admin/settings", label: "إعدادات النظام", icon: Settings, permission: "users_manage" },
+    ],
+  },
+  {
+    label: "النظام",
+    items: [
+      { href: "/admin/audit-log", label: "سجل التدقيق", icon: FileText, permission: "audit_view" },
+    ],
+  },
 ];
 
+const allNavItems = navSections.flatMap(s => s.items);
+
 function Breadcrumb({ location }: { location: string }) {
-  const current = navItems.find((item) => item.href === location);
+  const current = allNavItems.find((item) => item.href === location);
   if (!current || location === "/admin") return null;
 
   return (
@@ -83,10 +103,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
-
-  const visibleNavItems = navItems.filter(
-    (item) => !item.permission || can(item.permission)
-  );
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col md:flex-row" dir="rtl">
@@ -139,30 +155,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <nav className="p-2 space-y-0.5 flex-1 overflow-y-auto">
-          {visibleNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.href === "/admin" ? location === "/admin" : location.startsWith(item.href);
+        <nav className="p-2 flex-1 overflow-y-auto">
+          {navSections.map((section, sIdx) => {
+            const visibleItems = section.items.filter(
+              (item) => !item.permission || can(item.permission)
+            );
+            if (visibleItems.length === 0) return null;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group",
-                  collapsed && "md:justify-center md:px-0",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              <div key={sIdx} className={cn(sIdx > 0 && "mt-1")}>
+                {section.label && !collapsed && (
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                      {section.label}
+                    </p>
+                  </div>
                 )}
-                data-testid={`link-nav-${item.href.replace('/', '') || 'home'}`}
-              >
-                <Icon className={cn(
-                  "w-[18px] h-[18px] shrink-0 transition-transform duration-200",
-                  !isActive && "group-hover:scale-110"
-                )} />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
+                {section.label && !collapsed && sIdx > 0 && (
+                  <div className="mx-3 mb-1 border-t border-border/50" />
+                )}
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.href === "/admin" ? location === "/admin" : location.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={collapsed ? item.label : undefined}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group",
+                          collapsed && "md:justify-center md:px-0",
+                          isActive 
+                            ? "bg-primary text-primary-foreground shadow-sm" 
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                        data-testid={`link-nav-${item.href.replace('/admin/', '') || 'home'}`}
+                      >
+                        <Icon className={cn(
+                          "w-[18px] h-[18px] shrink-0 transition-transform duration-200",
+                          !isActive && "group-hover:scale-110"
+                        )} />
+                        {!collapsed && <span>{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </nav>

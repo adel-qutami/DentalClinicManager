@@ -18,6 +18,7 @@ const UsersPage = lazy(() => import("@/pages/users"));
 const AuditLog = lazy(() => import("@/pages/audit-log"));
 const PatientProfile = lazy(() => import("@/pages/patient-profile"));
 const PublicBookingsPage = lazy(() => import("@/pages/public-bookings"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
 
 function PageLoader() {
   return (
@@ -98,6 +99,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/audit-log">
           {() => <ProtectedRoute component={AuditLog} permission="audit_view" />}
+        </Route>
+        <Route path="/admin/settings">
+          {() => <ProtectedRoute component={SettingsPage} permission="users_manage" />}
         </Route>
         <Route component={NotFound} />
       </Switch>
