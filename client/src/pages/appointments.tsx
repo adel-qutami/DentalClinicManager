@@ -239,6 +239,7 @@ export default function Appointments() {
                   <TableHead className="text-right font-semibold">الدكتور</TableHead>
                   <TableHead className="text-right font-semibold">الفترة</TableHead>
                   <TableHead className="text-right font-semibold">الحالة</TableHead>
+                  <TableHead className="text-right font-semibold">ملاحظات</TableHead>
                   <TableHead className="text-center font-semibold">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -263,6 +264,15 @@ export default function Appointments() {
                         </Badge>
                       </TableCell>
                       <TableCell>{statusBadge(appt.status)}</TableCell>
+                      <TableCell className="max-w-[180px]">
+                        {appt.notes ? (
+                          <span className="text-sm text-muted-foreground truncate block" title={appt.notes}>
+                            {appt.notes}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/40 text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
                           {appt.status === 'scheduled' && (
@@ -313,6 +323,11 @@ export default function Appointments() {
                       <span>•</span>
                       <Badge variant="outline" className="text-[10px]">{appt.period === 'morning' ? 'صباحاً' : 'مساءً'}</Badge>
                     </div>
+                    {appt.notes && (
+                      <p className="text-xs text-muted-foreground bg-muted/40 rounded-md px-2 py-1.5 mb-3 leading-relaxed">
+                        {appt.notes}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap">
                       {appt.status === 'scheduled' && (
                         <>
