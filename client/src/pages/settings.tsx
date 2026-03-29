@@ -377,6 +377,8 @@ function UsersTab() {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [permissionsUser, setPermissionsUser] = useState<UserRecord | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserRecord | null>(null);
+  const [roleUser, setRoleUser] = useState<UserRecord | null>(null);
+  const [newRole, setNewRole] = useState<Role>("receptionist");
   const [newPassword, setNewPassword] = useState("");
   const [customPerms, setCustomPerms] = useState<string[]>([]);
   const [useCustomPerms, setUseCustomPerms] = useState(false);
@@ -458,6 +460,27 @@ function UsersTab() {
     } finally { setIsWorking(false); }
   }
 
+  async function handleRoleChange() {
+    if (!roleUser) return;
+    setIsWorking(true);
+    try {
+      const res = await fetch(`/api/users/${roleUser.id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (res.ok) {
+        toast({ title: "تم التغيير", description: "تم تحديث دور المستخدم" });
+        qc.invalidateQueries({ queryKey: ["/api/users"] });
+        setRoleUser(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "فشلت العملية", description: data.message, variant: "destructive" });
+      }
+    } finally { setIsWorking(false); }
+  }
+
   async function handleResetPassword() {
     if (!resetPasswordUser || newPassword.length < 4) return;
     setIsWorking(true);
@@ -508,6 +531,9 @@ function UsersTab() {
               </div>
               {!isMe && (
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => { setRoleUser(u); setNewRole(u.role); }} data-testid={`button-change-role-${u.id}`}>
+                    <Edit className="w-3.5 h-3.5" /> الدور
+                  </Button>
                   {u.role !== "manager" && (
                     <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openPermissions(u)} data-testid={`button-permissions-${u.id}`}>
                       <Sliders className="w-3.5 h-3.5" /> الصلاحيات
@@ -613,6 +639,27 @@ function UsersTab() {
             <div className="flex gap-3">
               <Button onClick={handleResetPassword} disabled={isWorking || newPassword.length < 4} data-testid="button-confirm-reset-password">{isWorking ? "جاري التغيير..." : "تغيير كلمة المرور"}</Button>
               <Button variant="outline" onClick={() => { setResetPasswordUser(null); setNewPassword(""); }}>إلغاء</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!roleUser} onOpenChange={(open) => { if (!open) setRoleUser(null); }}>
+        <DialogContent className="sm:max-w-sm" dir="rtl">
+          <DialogHeader><DialogTitle className="text-right">تغيير دور: {roleUser?.username}</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+            <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)} dir="rtl">
+              <SelectTrigger data-testid="select-change-role"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manager">مدير العيادة</SelectItem>
+                <SelectItem value="dentist">طبيب أسنان</SelectItem>
+                <SelectItem value="doctor">طبيب</SelectItem>
+                <SelectItem value="receptionist">موظف استقبال</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-3">
+              <Button onClick={handleRoleChange} disabled={isWorking} data-testid="button-confirm-role-change">{isWorking ? "جاري التغيير..." : "حفظ"}</Button>
+              <Button variant="outline" onClick={() => setRoleUser(null)}>إلغاء</Button>
             </div>
           </div>
         </DialogContent>
